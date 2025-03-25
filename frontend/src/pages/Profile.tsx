@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FiUser, FiMail, FiSettings, FiBell, FiSave } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 
 const ProfileContainer = styled.div`
   display: flex;
@@ -213,9 +214,9 @@ const Profile: React.FC = () => {
   
   // Form state
   const [formData, setFormData] = useState({
-    fullName: 'Carl Johnson',
+    fullName: '',
     email: user?.email || '',
-    role: 'Admin',
+    role: 'User',
     notifications: {
       email: true,
       taskAssignments: true,
@@ -223,6 +224,44 @@ const Profile: React.FC = () => {
       marketingReminders: false
     }
   });
+  
+  // Load user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+          console.error('Error fetching profile:', error);
+          return;
+        }
+        
+        if (data) {
+          setFormData({
+            fullName: data.full_name || '',
+            email: user.email || '',
+            role: data.role || 'User',
+            notifications: data.notification_preferences || {
+              email: true,
+              taskAssignments: true,
+              taskUpdates: true,
+              marketingReminders: false
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -243,10 +282,30 @@ const Profile: React.FC = () => {
     });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would save to the database
-    console.log('Form submitted:', formData);
+    try {
+      // Save to user_profiles table in Supabase
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: user?.id,
+          full_name: formData.fullName,
+          role: formData.role,
+          notification_preferences: formData.notifications
+        });
+        
+      if (error) {
+        console.error('Error saving profile:', error);
+        alert('Failed to save profile changes. Please try again.');
+        return;
+      }
+      
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('An unexpected error occurred. Please try again.');
+    }
   };
   
   return (
@@ -299,7 +358,8 @@ const Profile: React.FC = () => {
           <FiBell /> Notification Settings
         </CardTitle>
         
-        <ToggleGroup>
+        <form onSubmit={handleSubmit}>
+          <ToggleGroup>
           <ToggleLabel>
             <ToggleTitle>Email Notifications</ToggleTitle>
             <ToggleDescription>Receive notifications via email</ToggleDescription>
@@ -364,13 +424,24 @@ const Profile: React.FC = () => {
         </ToggleGroup>
         
         <ActionButtons>
-          <SecondaryButton type="button">
+          <SecondaryButton type="button" onClick={() => {
+            setFormData(prev => ({
+              ...prev,
+              notifications: {
+                email: true,
+                taskAssignments: true,
+                taskUpdates: true,
+                marketingReminders: false
+              }
+            }));
+          }}>
             Reset to Defaults
           </SecondaryButton>
-          <PrimaryButton type="button">
+          <PrimaryButton type="submit">
             <FiSave size={18} /> Save Settings
           </PrimaryButton>
         </ActionButtons>
+        </form>
       </ProfileCard>
       
       <ProfileCard>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFileText, FiLink, FiMessageCircle } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import DocumentUpload from '../components/DocumentUpload';
+import TaskDependencies from '../components/TaskDependencies';
+import TaskComments from '../components/TaskComments';
 
 // Type definitions
 interface Task {
@@ -110,21 +112,6 @@ const ColumnCount = styled.span`
   padding: 0.2rem 0.5rem;
   border-radius: 10px;
   margin-left: 0.5rem;
-`;
-
-const AddButton = styled.button`
-  background: none;
-  border: none;
-  color: #777;
-  cursor: pointer;
-  padding: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  &:hover {
-    color: #5c6bc0;
-  }
 `;
 
 const TaskList = styled.div`
@@ -358,6 +345,8 @@ const Tasks: React.FC = () => {
     campaignId: ''
   });
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showDependenciesModal, setShowDependenciesModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   // Fetch tasks and campaigns on component mount
@@ -655,10 +644,36 @@ const Tasks: React.FC = () => {
     setSelectedTask(null);
   };
   
+  // Open the dependencies modal for a task
+  const openDependenciesModal = (task: Task) => {
+    setSelectedTask(task);
+    setShowDependenciesModal(true);
+  };
+
+  // Close the dependencies modal
+  const closeDependenciesModal = () => {
+    setShowDependenciesModal(false);
+    setSelectedTask(null);
+  };
+  
+  // Open the comments modal for a task
+  const openCommentsModal = (task: Task) => {
+    setSelectedTask(task);
+    setShowCommentsModal(true);
+  };
+
+  // Close the comments modal
+  const closeCommentsModal = () => {
+    setShowCommentsModal(false);
+    setSelectedTask(null);
+  };
+  
   // Helper function to format due date
   const formatDueDate = (task: Task) => {
     if (task.due_date) {
-      return new Date(task.due_date).toLocaleDateString();
+      // Fix: Explicitly preserve the date by parsing it correctly
+      const [year, month, day] = task.due_date.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString();
     }
     return null;
   };
@@ -668,6 +683,12 @@ const Tasks: React.FC = () => {
     <TaskActions>
       <ActionButton onClick={() => openDocumentsModal(task)} title="Manage Documents">
         <FiFileText size={16} />
+      </ActionButton>
+      <ActionButton onClick={() => openDependenciesModal(task)} title="Task Dependencies">
+        <FiLink size={16} />
+      </ActionButton>
+      <ActionButton onClick={() => openCommentsModal(task)} title="Comments">
+        <FiMessageCircle size={16} />
       </ActionButton>
       <ActionButton onClick={() => openEditModal(task)} title="Edit Task">
         <FiEdit2 size={16} />
@@ -756,9 +777,6 @@ const Tasks: React.FC = () => {
                 To Do
                 <ColumnCount>{getTasksByStatus('todo').length}</ColumnCount>
               </ColumnTitle>
-              <AddButton onClick={() => openAddModal('todo')}>
-                <FiPlus size={18} />
-              </AddButton>
             </ColumnHeader>
             <TaskList>
               {getTasksByStatus('todo')
@@ -778,18 +796,11 @@ const Tasks: React.FC = () => {
                       </TaskTags>
                       {task.due_date && (
                         <TaskDueDate>
-                          {new Date(task.due_date).toLocaleDateString()}
+                          {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
-                    <TaskActions>
-                      <ActionButton onClick={() => openEditModal(task)}>
-                        <FiEdit2 size={16} />
-                      </ActionButton>
-                      <ActionButton onClick={() => deleteTask(task.id)}>
-                        <FiTrash2 size={16} />
-                      </ActionButton>
-                    </TaskActions>
+                    {renderTaskActions(task)}
                   </TaskCard>
                 ))}
             </TaskList>
@@ -802,9 +813,6 @@ const Tasks: React.FC = () => {
                 In Progress
                 <ColumnCount>{getTasksByStatus('in_progress').length}</ColumnCount>
               </ColumnTitle>
-              <AddButton onClick={() => openAddModal('in_progress')}>
-                <FiPlus size={18} />
-              </AddButton>
             </ColumnHeader>
             <TaskList>
               {getTasksByStatus('in_progress')
@@ -824,18 +832,11 @@ const Tasks: React.FC = () => {
                       </TaskTags>
                       {task.due_date && (
                         <TaskDueDate>
-                          {new Date(task.due_date).toLocaleDateString()}
+                          {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
-                    <TaskActions>
-                      <ActionButton onClick={() => openEditModal(task)}>
-                        <FiEdit2 size={16} />
-                      </ActionButton>
-                      <ActionButton onClick={() => deleteTask(task.id)}>
-                        <FiTrash2 size={16} />
-                      </ActionButton>
-                    </TaskActions>
+                    {renderTaskActions(task)}
                   </TaskCard>
                 ))}
             </TaskList>
@@ -848,9 +849,6 @@ const Tasks: React.FC = () => {
                 Blocked
                 <ColumnCount>{getTasksByStatus('blocked').length}</ColumnCount>
               </ColumnTitle>
-              <AddButton onClick={() => openAddModal('blocked')}>
-                <FiPlus size={18} />
-              </AddButton>
             </ColumnHeader>
             <TaskList>
               {getTasksByStatus('blocked')
@@ -870,18 +868,11 @@ const Tasks: React.FC = () => {
                       </TaskTags>
                       {task.due_date && (
                         <TaskDueDate>
-                          {new Date(task.due_date).toLocaleDateString()}
+                          {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
-                    <TaskActions>
-                      <ActionButton onClick={() => openEditModal(task)}>
-                        <FiEdit2 size={16} />
-                      </ActionButton>
-                      <ActionButton onClick={() => deleteTask(task.id)}>
-                        <FiTrash2 size={16} />
-                      </ActionButton>
-                    </TaskActions>
+                    {renderTaskActions(task)}
                   </TaskCard>
                 ))}
             </TaskList>
@@ -894,9 +885,6 @@ const Tasks: React.FC = () => {
                 Done
                 <ColumnCount>{getTasksByStatus('done').length}</ColumnCount>
               </ColumnTitle>
-              <AddButton onClick={() => openAddModal('done')}>
-                <FiPlus size={18} />
-              </AddButton>
             </ColumnHeader>
             <TaskList>
               {getTasksByStatus('done')
@@ -916,18 +904,11 @@ const Tasks: React.FC = () => {
                       </TaskTags>
                       {task.due_date && (
                         <TaskDueDate>
-                          {new Date(task.due_date).toLocaleDateString()}
+                          {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
-                    <TaskActions>
-                      <ActionButton onClick={() => openEditModal(task)}>
-                        <FiEdit2 size={16} />
-                      </ActionButton>
-                      <ActionButton onClick={() => deleteTask(task.id)}>
-                        <FiTrash2 size={16} />
-                      </ActionButton>
-                    </TaskActions>
+                    {renderTaskActions(task)}
                   </TaskCard>
                 ))}
             </TaskList>
@@ -1066,6 +1047,23 @@ const Tasks: React.FC = () => {
             />
           </ModalContent>
         </Modal>
+      )}
+      
+      {/* Dependencies Modal */}
+      {showDependenciesModal && selectedTask && (
+        <TaskDependencies
+          taskId={selectedTask.id}
+          onClose={closeDependenciesModal}
+        />
+      )}
+      
+      {/* Comments Modal */}
+      {showCommentsModal && selectedTask && (
+        <TaskComments
+          taskId={selectedTask.id}
+          taskTitle={selectedTask.title}
+          onClose={closeCommentsModal}
+        />
       )}
     </TasksContainer>
   );

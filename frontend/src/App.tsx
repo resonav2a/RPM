@@ -10,6 +10,8 @@ import Marketing from './pages/Marketing';
 import Roadmap from './pages/Roadmap';
 import Profile from './pages/Profile';
 import AuthTroubleshoot from './pages/AuthTroubleshoot';
+import WeeklyPlanning from './pages/WeeklyPlanning';
+import TodayMode from './pages/TodayMode';
 import Layout from './components/layout/Layout';
 import { supabase } from './services/supabase';
 import { handleAuthRedirect, extractAndProcessAuthToken } from './utils/authRedirect';
@@ -214,19 +216,33 @@ function App() {
             </ProtectedRoute>
           } />
           
-          <Route path="/roadmap" element={
+          {/* Planner View (merged Roadmap and Weekly Planning) */}
+          <Route path="/planner" element={
             <ProtectedRoute>
               <Layout>
-                <Roadmap />
+                <WeeklyPlanning />
               </Layout>
             </ProtectedRoute>
           } />
+          
+          {/* Legacy routes redirected to Planner */}
+          <Route path="/roadmap" element={<Navigate to="/planner" replace />} />
+          <Route path="/weekly" element={<Navigate to="/planner" replace />} />
           
           {/* Campaign-specific roadmap view */}
           <Route path="/roadmap/:campaignId" element={
             <ProtectedRoute>
               <Layout>
-                <Roadmap />
+                <WeeklyPlanning />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Today Mode/Focus View */}
+          <Route path="/today" element={
+            <ProtectedRoute>
+              <Layout>
+                <TodayMode />
               </Layout>
             </ProtectedRoute>
           } />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiUpload, FiFile, FiLink, FiX, FiCheck } from 'react-icons/fi';
+import { FiUpload, FiFile, FiLink, FiX, FiCheck, FiEye } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import { Document } from '../types';
 import { marked } from 'marked';

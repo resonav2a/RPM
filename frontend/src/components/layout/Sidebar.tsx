@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiList, FiCalendar, FiFileText, FiUser, FiMenu, FiX, FiMap } from 'react-icons/fi';
+import { FiHome, FiList, FiCalendar, FiFileText, FiUser, FiMenu, FiX, FiMap, FiClock, FiTarget } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 
 const SidebarContainer = styled.aside<{ isOpen: boolean }>`
@@ -110,13 +110,16 @@ const Sidebar: React.FC = () => {
             <FiHome size={18} /> Dashboard
           </NavItem>
           <NavItem to="/tasks" onClick={closeMobileMenu}>
-            <FiList size={18} /> Tasks
+            <FiList size={18} /> All Tasks
+          </NavItem>
+          <NavItem to="/today" onClick={closeMobileMenu}>
+            <FiTarget size={18} /> Today
+          </NavItem>
+          <NavItem to="/planner" onClick={closeMobileMenu}>
+            <FiMap size={18} /> Planning & Roadmap
           </NavItem>
           <NavItem to="/marketing" onClick={closeMobileMenu}>
             <FiCalendar size={18} /> Marketing
-          </NavItem>
-          <NavItem to="/roadmap" onClick={closeMobileMenu}>
-            <FiMap size={18} /> Roadmap
           </NavItem>
           <NavItem to="/docs" onClick={closeMobileMenu}>
             <FiFileText size={18} /> Documents
