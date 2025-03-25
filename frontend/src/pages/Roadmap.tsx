@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiCalendar, FiClock, FiFilter, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useParams, Link } from 'react-router-dom';
+import { FiCalendar, FiClock, FiFilter, FiChevronLeft, FiChevronRight, FiArrowLeft } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import { Campaign, Task } from '../types';
 
@@ -282,12 +283,14 @@ const EmptyStateButton = styled.button`
 
 // Component
 const Roadmap: React.FC = () => {
+  const { campaignId } = useParams<{ campaignId?: string }>();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [specificCampaign, setSpecificCampaign] = useState<Campaign | null>(null);
   
   // Calculate date range based on view mode and current date
   const getDateRange = () => {
@@ -357,7 +360,7 @@ const Roadmap: React.FC = () => {
   // Fetch campaigns and tasks on component mount and when date range changes
   useEffect(() => {
     fetchData();
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, campaignId]);
   
   // Function to fetch campaigns and tasks
   const fetchData = async () => {
@@ -375,7 +378,39 @@ const Roadmap: React.FC = () => {
       const startDate = startOfRange.toISOString();
       const endDate = endOfRange.toISOString();
       
-      // Fetch campaigns that overlap with the date range
+      // If a specific campaign ID is provided in the URL, fetch only that campaign
+      if (campaignId) {
+        const { data: specificCampaignData, error: specificError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('id', campaignId)
+          .single();
+          
+        if (specificError && specificError.code !== 'PGRST116') {
+          // PGRST116 is "Results contain 0 rows" - not a real error for us
+          throw specificError;
+        }
+        
+        if (specificCampaignData) {
+          setSpecificCampaign(specificCampaignData);
+          setCampaigns([specificCampaignData]);
+          
+          // Fetch tasks for this specific campaign
+          const { data: taskData, error: taskError } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('campaign_id', campaignId);
+            
+          if (taskError) {
+            throw taskError;
+          }
+          
+          setTasks(taskData || []);
+          return; // Exit early, we're done
+        }
+      }
+      
+      // Otherwise - no specific campaign or campaign not found - fetch all campaigns in date range
       const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
@@ -499,7 +534,18 @@ const Roadmap: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>Marketing Roadmap</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {specificCampaign && (
+            <Link to="/roadmap" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <ActionButton>
+                <FiArrowLeft size={16} /> Back to All Campaigns
+              </ActionButton>
+            </Link>
+          )}
+          <Title>
+            {specificCampaign ? `Roadmap: ${specificCampaign.title}` : 'Marketing Roadmap'}
+          </Title>
+        </div>
         <Actions>
           <ActionButton onClick={() => setViewMode('month')}>
             <FiCalendar size={16} /> Month View

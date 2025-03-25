@@ -222,6 +222,15 @@ function App() {
             </ProtectedRoute>
           } />
           
+          {/* Campaign-specific roadmap view */}
+          <Route path="/roadmap/:campaignId" element={
+            <ProtectedRoute>
+              <Layout>
+                <Roadmap />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/docs" element={
             <ProtectedRoute>
               <Layout>

@@ -1,12 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { FiPlus, FiFilter, FiMail, FiTwitter, FiInstagram, FiLinkedin, FiFileText, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiFilter, FiMail, FiTwitter, FiInstagram, FiLinkedin, FiFileText, FiEdit, FiTrash2, FiList, FiCheck, FiEye, FiX } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import DocumentUpload from '../components/DocumentUpload';
 
 // Type definitions
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'blocked' | 'done';
+  priority: 'p0' | 'p1' | 'p2' | 'p3';
+  due_date?: string;
+  assignee_id?: string;
+  tags?: string[];
+  created_at?: string;
+  user_id?: string;
+  campaign_id?: string;
+}
+
 interface Campaign {
   id: string;
   title: string;
@@ -21,6 +37,9 @@ interface Campaign {
   user_id: string;
   created_at: string;
   updated_at: string;
+  // These are computed properties, not stored in the database
+  tasks?: Task[];
+  completionPercentage?: number;
 }
 
 // Styled components
@@ -423,6 +442,156 @@ const LoadingContainer = styled.div`
   height: 200px;
 `;
 
+// Task related styled components
+const CampaignDetailModal = styled(Modal)``;
+
+const CampaignDetailContent = styled(ModalContent)`
+  width: 90%;
+  max-width: 900px;
+`;
+
+const DetailTabs = styled.div`
+  display: flex;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 1.5rem;
+`;
+
+const DetailTab = styled.button<{ active?: boolean }>`
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid ${({ active }) => (active ? '#5c6bc0' : 'transparent')};
+  color: ${({ active }) => (active ? '#5c6bc0' : '#666')};
+  font-weight: ${({ active }) => (active ? '500' : '400')};
+  cursor: pointer;
+  
+  &:hover {
+    color: #5c6bc0;
+  }
+`;
+
+const ProgressContainer = styled.div`
+  margin: 1rem 0;
+`;
+
+const ProgressBar = styled.div`
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+`;
+
+const ProgressFill = styled.div<{ percentage: number }>`
+  height: 100%;
+  width: ${({ percentage }) => `${percentage}%`};
+  background: ${({ percentage }) => 
+    percentage < 25 ? '#e74c3c' :
+    percentage < 50 ? '#f39c12' :
+    percentage < 75 ? '#3498db' : 
+    '#2ecc71'
+  };
+  transition: width 0.3s ease;
+`;
+
+const TasksContainer = styled.div`
+  margin-top: 1rem;
+`;
+
+const TaskList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const TaskItem = styled.div<{ completed?: boolean }>`
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: ${({ completed }) => completed ? '#f9fff9' : 'white'};
+  gap: 0.75rem;
+  
+  &:hover {
+    background: ${({ completed }) => completed ? '#f0fff0' : '#f9f9f9'};
+  }
+`;
+
+const TaskCheckbox = styled.div<{ checked?: boolean }>`
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid ${({ checked }) => checked ? '#2ecc71' : '#ddd'};
+  background: ${({ checked }) => checked ? '#2ecc71' : 'white'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  
+  &:hover {
+    border-color: ${({ checked }) => checked ? '#27ae60' : '#bbb'};
+  }
+`;
+
+const TaskContent = styled.div`
+  flex: 1;
+`;
+
+const TaskTitle = styled.div<{ completed?: boolean }>`
+  font-weight: 500;
+  text-decoration: ${({ completed }) => completed ? 'line-through' : 'none'};
+  color: ${({ completed }) => completed ? '#888' : '#333'};
+`;
+
+const TaskActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const ActionIconButton = styled.button`
+  background: none;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  padding: 0.25rem;
+  
+  &:hover {
+    color: #5c6bc0;
+  }
+`;
+
+const AddTaskForm = styled.form`
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+`;
+
+const NewTaskInput = styled.input`
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  
+  &:focus {
+    outline: none;
+    border-color: #5c6bc0;
+  }
+`;
+
+const SortSelect = styled.select`
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #5c6bc0;
+  }
+`;
+
 // Component
 const Marketing: React.FC = () => {
   const { user } = useAuth();
@@ -430,9 +599,15 @@ const Marketing: React.FC = () => {
   const [filter, setFilter] = useState<string | null>(null);
   const [blastMode, setBlastMode] = useState<boolean>(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignTasks, setCampaignTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'documents'>('overview');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [taskSortMethod, setTaskSortMethod] = useState<'priority' | 'due_date' | 'status'>('priority');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -448,24 +623,60 @@ const Marketing: React.FC = () => {
   useEffect(() => {
     fetchCampaigns();
   }, []);
+  
+  // Fetch tasks for a specific campaign when it's selected
+  useEffect(() => {
+    if (selectedCampaign) {
+      fetchCampaignTasks(selectedCampaign.id);
+    }
+  }, [selectedCampaign]);
 
   // Function to fetch campaigns from Supabase
   const fetchCampaigns = async () => {
     try {
       setIsLoading(true);
       
-      const { data, error } = await supabase
+      // Get all campaigns
+      const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
         .order('start_date', { ascending: true });
         
-      if (error) {
-        throw error;
+      if (campaignError) {
+        throw campaignError;
       }
       
-      if (data) {
-        setCampaigns(data);
+      if (!campaignData) {
+        return;
       }
+      
+      // Get all tasks with campaign_id
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .not('campaign_id', 'is', null);
+        
+      if (taskError) {
+        throw taskError;
+      }
+      
+      // Calculate completion percentage for each campaign
+      const campaignsWithProgress = campaignData.map(campaign => {
+        const campaignTasks = taskData?.filter(task => task.campaign_id === campaign.id) || [];
+        const completedTasks = campaignTasks.filter(task => task.status === 'done');
+        
+        const completionPercentage = campaignTasks.length > 0 
+          ? Math.round((completedTasks.length / campaignTasks.length) * 100) 
+          : 0;
+        
+        return {
+          ...campaign,
+          tasks: campaignTasks,
+          completionPercentage
+        };
+      });
+      
+      setCampaigns(campaignsWithProgress);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
     } finally {
@@ -598,6 +809,145 @@ const Marketing: React.FC = () => {
       console.error('Error deleting campaign:', error);
       alert('Error deleting campaign. Check console for details.');
     }
+  };
+  
+  // Function to fetch tasks for a specific campaign
+  const fetchCampaignTasks = async (campaignId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('campaign_id', campaignId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setCampaignTasks(data || []);
+    } catch (error) {
+      console.error('Error fetching campaign tasks:', error);
+    }
+  };
+  
+  // Open campaign detail modal
+  const openCampaignDetail = (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+    setActiveTab('overview');
+    setShowDetailModal(true);
+  };
+  
+  // Close campaign detail modal
+  const closeCampaignDetail = () => {
+    setShowDetailModal(false);
+    setSelectedCampaign(null);
+    setCampaignTasks([]);
+  };
+  
+  // Create a new task for the campaign
+  const createCampaignTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedCampaign || !newTaskTitle.trim()) return;
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const newTask = {
+        title: newTaskTitle,
+        status: 'todo' as const,
+        priority: 'p2' as const,
+        due_date: today,
+        campaign_id: selectedCampaign.id
+      };
+      
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([newTask])
+        .select();
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setCampaignTasks([...campaignTasks, data[0]]);
+        setNewTaskTitle('');
+        
+        // Refresh the campaign list to update progress
+        fetchCampaigns();
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+  };
+  
+  // Update task status (complete/incomplete)
+  const toggleTaskStatus = async (taskId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+      
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId)
+        .select();
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setCampaignTasks(
+          campaignTasks.map(task => (task.id === taskId ? data[0] : task))
+        );
+        
+        // Refresh campaign list to update progress
+        fetchCampaigns();
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+  
+  // Delete a task
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setCampaignTasks(campaignTasks.filter(task => task.id !== taskId));
+      
+      // Refresh campaign list to update progress
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+  
+  // Sort tasks based on selected method
+  const sortTasks = (tasks: Task[]) => {
+    return [...tasks].sort((a, b) => {
+      if (taskSortMethod === 'priority') {
+        // p0 is highest priority
+        return a.priority.localeCompare(b.priority);
+      } else if (taskSortMethod === 'due_date') {
+        // Sort by due date (most recent first)
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      } else {
+        // Sort by status (todo first, done last)
+        if (a.status === 'done' && b.status !== 'done') return 1;
+        if (a.status !== 'done' && b.status === 'done') return -1;
+        return 0;
+      }
+    });
   };
 
   // Function to open the create campaign modal
@@ -847,7 +1197,11 @@ const Marketing: React.FC = () => {
             <EventsList>
               {eventsForDay.length > 0 ? (
                 eventsForDay.map(campaign => (
-                  <EventCard key={campaign.id} style={{ borderLeft: `4px solid ${campaign.color || '#5c6bc0'}` }}>
+                  <EventCard 
+                    key={campaign.id} 
+                    style={{ borderLeft: `4px solid ${campaign.color || '#5c6bc0'}`, cursor: 'pointer' }}
+                    onClick={() => openCampaignDetail(campaign)}
+                  >
                     <EventIcon type={campaign.channels?.[0] || 'content'}>
                       {getEventIcon(campaign.channels)}
                     </EventIcon>
@@ -858,6 +1212,19 @@ const Marketing: React.FC = () => {
                           <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>{campaign.description}</p>
                         )}
                       </div>
+                      
+                      {campaign.completionPercentage !== undefined && campaign.completionPercentage > 0 && (
+                        <ProgressContainer>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                            <span>Progress</span>
+                            <span>{campaign.completionPercentage}%</span>
+                          </div>
+                          <ProgressBar>
+                            <ProgressFill percentage={campaign.completionPercentage} />
+                          </ProgressBar>
+                        </ProgressContainer>
+                      )}
+                      
                       <EventDetails>
                         <EventMeta>
                           <span>{formatDateRange(campaign.start_date, campaign.end_date, campaign.is_all_day)}</span>
@@ -873,7 +1240,10 @@ const Marketing: React.FC = () => {
                           {user && user.id === campaign.user_id && (
                             <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
                               <button 
-                                onClick={() => openEditModal(campaign)}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent opening details
+                                  openEditModal(campaign);
+                                }}
                                 style={{ 
                                   background: 'none', 
                                   border: 'none', 
@@ -885,7 +1255,10 @@ const Marketing: React.FC = () => {
                                 <FiEdit size={16} />
                               </button>
                               <button 
-                                onClick={() => deleteCampaign(campaign.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent opening details
+                                  deleteCampaign(campaign.id);
+                                }}
                                 style={{ 
                                   background: 'none', 
                                   border: 'none', 
@@ -931,6 +1304,190 @@ const Marketing: React.FC = () => {
           </ul>
           <p><strong>Note:</strong> Blast mode is designed for high-intensity marketing periods. Use it for product launches or special campaigns.</p>
         </div>
+      )}
+      
+      {/* Campaign Detail Modal */}
+      {showDetailModal && selectedCampaign && (
+        <CampaignDetailModal>
+          <CampaignDetailContent>
+            <ModalHeader>
+              <ModalTitle>
+                {selectedCampaign.title}
+              </ModalTitle>
+              <CloseButton onClick={closeCampaignDetail}>&times;</CloseButton>
+            </ModalHeader>
+            
+            <DetailTabs>
+              <DetailTab 
+                active={activeTab === 'overview'} 
+                onClick={() => setActiveTab('overview')}
+              >
+                Overview
+              </DetailTab>
+              <DetailTab 
+                active={activeTab === 'tasks'} 
+                onClick={() => setActiveTab('tasks')}
+              >
+                Tasks
+              </DetailTab>
+              <DetailTab 
+                active={activeTab === 'documents'} 
+                onClick={() => setActiveTab('documents')}
+              >
+                Documents
+              </DetailTab>
+            </DetailTabs>
+            
+            {activeTab === 'overview' && (
+              <div>
+                <div>
+                  <h3>Campaign Details</h3>
+                  <p><strong>Status:</strong> {selectedCampaign.status}</p>
+                  <p><strong>Date Range:</strong> {formatDateRange(selectedCampaign.start_date, selectedCampaign.end_date, selectedCampaign.is_all_day)}</p>
+                  <p><strong>Channels:</strong> {selectedCampaign.channels?.join(', ') || 'None'}</p>
+                  {selectedCampaign.description && (
+                    <>
+                      <h3>Description</h3>
+                      <p>{selectedCampaign.description}</p>
+                    </>
+                  )}
+                </div>
+                
+                <ProgressContainer>
+                  <h3>Task Progress</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>
+                      {campaignTasks.filter(task => task.status === 'done').length} of {campaignTasks.length} tasks completed
+                    </span>
+                    <span>{selectedCampaign.completionPercentage}%</span>
+                  </div>
+                  <ProgressBar>
+                    <ProgressFill percentage={selectedCampaign.completionPercentage || 0} />
+                  </ProgressBar>
+                </ProgressContainer>
+                
+                <div style={{ marginTop: '1.5rem' }}>
+                  <Button onClick={() => setActiveTab('tasks')}>Manage Tasks</Button>
+                  <Button 
+                    onClick={() => openEditModal(selectedCampaign)} 
+                    style={{ marginLeft: '0.5rem', background: '#f39c12' }}
+                  >
+                    Edit Campaign
+                  </Button>
+                  <Link to={`/roadmap/${selectedCampaign.id}`} style={{ textDecoration: 'none' }}>
+                    <Button 
+                      style={{ marginLeft: '0.5rem', background: '#2ecc71' }}
+                    >
+                      View on Roadmap
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'tasks' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3>Campaign Tasks</h3>
+                  <div>
+                    <label style={{ marginRight: '0.5rem' }}>Sort by:</label>
+                    <SortSelect 
+                      value={taskSortMethod}
+                      onChange={(e) => setTaskSortMethod(e.target.value as any)}
+                    >
+                      <option value="priority">Priority</option>
+                      <option value="due_date">Due Date</option>
+                      <option value="status">Status</option>
+                    </SortSelect>
+                  </div>
+                </div>
+                
+                <ProgressContainer>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>
+                      {campaignTasks.filter(task => task.status === 'done').length} of {campaignTasks.length} tasks completed
+                    </span>
+                    <span>{selectedCampaign.completionPercentage}%</span>
+                  </div>
+                  <ProgressBar>
+                    <ProgressFill percentage={selectedCampaign.completionPercentage || 0} />
+                  </ProgressBar>
+                </ProgressContainer>
+                
+                <TasksContainer>
+                  {campaignTasks.length > 0 ? (
+                    <TaskList>
+                      {sortTasks(campaignTasks).map(task => (
+                        <TaskItem 
+                          key={task.id}
+                          completed={task.status === 'done'}
+                        >
+                          <TaskCheckbox 
+                            checked={task.status === 'done'}
+                            onClick={() => toggleTaskStatus(task.id, task.status)}
+                          >
+                            {task.status === 'done' && <FiCheck size={14} />}
+                          </TaskCheckbox>
+                          <TaskContent>
+                            <TaskTitle completed={task.status === 'done'}>
+                              {task.title}
+                            </TaskTitle>
+                            {task.description && (
+                              <div style={{ fontSize: '0.9rem', marginTop: '0.25rem', color: '#666' }}>
+                                {task.description}
+                              </div>
+                            )}
+                          </TaskContent>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {task.priority === 'p0' && (
+                              <span style={{ color: '#e74c3c', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                CRITICAL
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span style={{ fontSize: '0.8rem', color: '#777' }}>
+                                {new Date(task.due_date).toLocaleDateString()}
+                              </span>
+                            )}
+                            <ActionIconButton onClick={() => deleteTask(task.id)}>
+                              <FiTrash2 size={16} />
+                            </ActionIconButton>
+                          </div>
+                        </TaskItem>
+                      ))}
+                    </TaskList>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                      No tasks associated with this campaign yet. Create your first task below.
+                    </div>
+                  )}
+                  
+                  <AddTaskForm onSubmit={createCampaignTask}>
+                    <NewTaskInput 
+                      type="text" 
+                      placeholder="Add a new task for this campaign..."
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      required
+                    />
+                    <Button type="submit">Add Task</Button>
+                  </AddTaskForm>
+                </TasksContainer>
+              </div>
+            )}
+            
+            {activeTab === 'documents' && (
+              <div>
+                <h3>Campaign Documents</h3>
+                <DocumentUpload 
+                  entityType="campaign" 
+                  entityId={selectedCampaign.id}
+                  onSuccess={() => fetchCampaigns()}
+                />
+              </div>
+            )}
+          </CampaignDetailContent>
+        </CampaignDetailModal>
       )}
       
       {/* Campaign Modal */}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
+import DocumentUpload from '../components/DocumentUpload';
 
 // Type definitions
 interface Task {
@@ -356,6 +357,8 @@ const Tasks: React.FC = () => {
     tags: '',
     campaignId: ''
   });
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   // Fetch tasks and campaigns on component mount
   useEffect(() => {
@@ -640,6 +643,18 @@ const Tasks: React.FC = () => {
     return campaign ? campaign.title : 'Unknown Campaign';
   };
   
+  // Open the documents modal for a task
+  const openDocumentsModal = (task: Task) => {
+    setSelectedTask(task);
+    setShowDocumentsModal(true);
+  };
+  
+  // Close the documents modal
+  const closeDocumentsModal = () => {
+    setShowDocumentsModal(false);
+    setSelectedTask(null);
+  };
+  
   // Helper function to format due date
   const formatDueDate = (task: Task) => {
     if (task.due_date) {
@@ -647,6 +662,21 @@ const Tasks: React.FC = () => {
     }
     return null;
   };
+  
+  // Render task actions (used in all columns)
+  const renderTaskActions = (task: Task) => (
+    <TaskActions>
+      <ActionButton onClick={() => openDocumentsModal(task)} title="Manage Documents">
+        <FiFileText size={16} />
+      </ActionButton>
+      <ActionButton onClick={() => openEditModal(task)} title="Edit Task">
+        <FiEdit2 size={16} />
+      </ActionButton>
+      <ActionButton onClick={() => deleteTask(task.id)} title="Delete Task">
+        <FiTrash2 size={16} />
+      </ActionButton>
+    </TaskActions>
+  );
   
   return (
     <TasksContainer>
@@ -1014,6 +1044,26 @@ const Tasks: React.FC = () => {
                 {editingTask ? 'Update Task' : 'Add Task'}
               </Button>
             </Form>
+          </ModalContent>
+        </Modal>
+      )}
+      
+      {/* Documents Modal */}
+      {showDocumentsModal && selectedTask && (
+        <Modal>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>
+                Documents for "{selectedTask.title}"
+              </ModalTitle>
+              <CloseButton onClick={closeDocumentsModal}>&times;</CloseButton>
+            </ModalHeader>
+            
+            <DocumentUpload
+              entityType="task"
+              entityId={selectedTask.id}
+              onSuccess={() => fetchData()}
+            />
           </ModalContent>
         </Modal>
       )}
