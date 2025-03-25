@@ -159,32 +159,10 @@ CREATE TABLE IF NOT EXISTS campaigns (
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
--- Policy for users to view their own campaigns
-CREATE POLICY "Users can view their own campaigns" ON campaigns
-  FOR SELECT USING (
-    auth.uid() = user_id
-  );
+-- Drop the old policy that restricts viewing to owners
+DROP POLICY IF EXISTS "Users can view their own campaigns" ON campaigns;
 
--- Policy for users to insert their own campaigns
-CREATE POLICY "Users can insert their own campaigns" ON campaigns
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id
-  );
-
--- Policy for users to update their own campaigns
-CREATE POLICY "Users can update their own campaigns" ON campaigns
-  FOR UPDATE USING (
-    auth.uid() = user_id
-  );
-
--- Policy for users to delete their own campaigns
-CREATE POLICY "Users can delete their own campaigns" ON campaigns
-  FOR DELETE USING (
-    auth.uid() = user_id
-  );
-
--- Create trigger to update campaigns.updated_at
-CREATE TRIGGER update_campaigns_updated_at
-  BEFORE UPDATE ON campaigns
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+-- Create a new policy to allow any authenticated user to view all campaigns
+CREATE POLICY "Users can view all campaigns" ON campaigns
+  FOR SELECT
+  USING (auth.role() = 'authenticated'); -- Ensures the user is logged in
