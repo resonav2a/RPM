@@ -457,8 +457,14 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
     });
   };
   
-  const saveApiKey = () => {
-    localStorage.setItem('openai_api_key', apiKey);
+  const saveApiKey = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (apiKey) {
+      localStorage.setItem('openai_api_key', apiKey);
+      // Force a page refresh to ensure the API key is picked up
+      window.location.reload();
+    }
     setError(null);
   };
 
@@ -475,8 +481,18 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
             id="openai-api-key-text"
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setApiKey(e.target.value);
+            }}
+            onBlur={(e) => {
+              if (e.target.value) {
+                localStorage.setItem('openai_api_key', e.target.value);
+              }
+            }}
             placeholder="sk-..."
+            autoFocus
           />
           <p>Your API key is stored locally in your browser and never sent to our servers.</p>
           
