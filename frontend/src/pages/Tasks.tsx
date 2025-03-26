@@ -754,19 +754,42 @@ const Tasks: React.FC = () => {
   const deleteTask = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
     
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
+    // Check if it's a local task (local IDs start with "task_")
+    const isLocalTask = taskId.startsWith('task_');
+    
+    if (isLocalTask) {
+      try {
+        // Get tasks from localStorage
+        const localTasks = JSON.parse(localStorage.getItem('local_tasks') || '[]');
         
-      if (error) {
-        throw error;
+        // Filter out the task to delete
+        const updatedTasks = localTasks.filter((task: any) => task.id !== taskId);
+        
+        // Save back to localStorage
+        localStorage.setItem('local_tasks', JSON.stringify(updatedTasks));
+        
+        // Update state
+        setTasks(tasks.filter(task => task.id !== taskId));
+        console.log('Local task deleted successfully');
+      } catch (error) {
+        console.error('Error deleting local task:', error);
       }
-      
-      setTasks(tasks.filter(task => task.id !== taskId));
-    } catch (error) {
-      console.error('Error deleting task:', error);
+    } else {
+      // It's a Supabase task, use the regular delete method
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
+          
+        if (error) {
+          throw error;
+        }
+        
+        setTasks(tasks.filter(task => task.id !== taskId));
+      } catch (error) {
+        console.error('Error deleting task from Supabase:', error);
+      }
     }
   };
   
