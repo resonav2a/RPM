@@ -536,7 +536,18 @@ const Tasks: React.FC = () => {
   
   // Fetch tasks and campaigns on component mount
   useEffect(() => {
-    fetchData();
+    fetchData().then(() => {
+      // Also load tasks from localStorage
+      try {
+        const localTasks = JSON.parse(localStorage.getItem('local_tasks') || '[]');
+        if (localTasks.length > 0) {
+          console.log('Found local tasks on mount:', localTasks);
+          setTasks(prevTasks => [...localTasks, ...prevTasks]);
+        }
+      } catch (error) {
+        console.error('Error loading local tasks:', error);
+      }
+    });
   }, []);
   
   // Function to fetch tasks and campaigns from Supabase
@@ -589,6 +600,25 @@ const Tasks: React.FC = () => {
   // Function to fetch tasks from Supabase
   const fetchTasks = async () => {
     await fetchData();
+    
+    // Also check for tasks in localStorage
+    try {
+      const localTasks = JSON.parse(localStorage.getItem('local_tasks') || '[]');
+      if (localTasks.length > 0) {
+        console.log('Found local tasks:', localTasks);
+        
+        // Merge with existing tasks
+        // Avoid duplicates by checking IDs
+        const existingIds = tasks.map(task => task.id);
+        const newLocalTasks = localTasks.filter(task => !existingIds.includes(task.id));
+        
+        if (newLocalTasks.length > 0) {
+          setTasks([...newLocalTasks, ...tasks]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading local tasks:', error);
+    }
   };
   
   // Function to add a new task
