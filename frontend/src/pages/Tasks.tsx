@@ -22,6 +22,8 @@ import TaskDependencies from '../components/TaskDependencies';
 import TaskComments from '../components/TaskComments';
 import TextToTask from '../components/TextToTask';
 import VoiceToTask from '../components/VoiceToTask';
+import SimpleTextToTask from '../components/SimpleTextToTask';
+import SimpleVoiceToTask from '../components/SimpleVoiceToTask';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
@@ -953,10 +955,7 @@ const Tasks: React.FC = () => {
         <div style={{ background: '#ffffff', borderRadius: '1rem', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #e0e6ed' }}>
           <h3>Text to Task</h3>
           <p>Convert natural language to structured tasks.</p>
-          <TextToTask onTaskCreated={fetchTasks} />
-          <div style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '1rem' }}>
-            <p>Example: "Remind me to update the investor deck with the LOI and AWS credits, mark it high priority and drop it in the Drive."</p>
-          </div>
+          <SimpleTextToTask onTaskCreated={fetchTasks} />
         </div>
       )}
       
@@ -964,7 +963,7 @@ const Tasks: React.FC = () => {
         <div style={{ background: '#ffffff', borderRadius: '1rem', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #e0e6ed' }}>
           <h3>Voice to Task</h3>
           <p>Speak your task and we'll transcribe and organize it for you.</p>
-          <VoiceToTask onTaskCreated={fetchTasks} />
+          <SimpleVoiceToTask onTaskCreated={fetchTasks} />
         </div>
       )}
       
