@@ -963,14 +963,14 @@ const Tasks: React.FC = () => {
             {campaigns.length > 0 && (
               <FilterGroup>
                 <h4>Filter by Campaign</h4>
-                <FiltersRow>
+                <FiltersRow style={{ flexWrap: 'wrap', maxWidth: '100%', gap: '8px' }}>
                   <FilterButton 
                     $active={selectedCampaign === null ? true : undefined} 
                     onClick={() => setSelectedCampaign(null)}
                   >
                     All Campaigns
                   </FilterButton>
-                  {campaigns.slice(0, 3).map(campaign => (
+                  {campaigns.map(campaign => (
                     <FilterButton 
                       key={campaign.id}
                       $active={selectedCampaign === campaign.id ? true : undefined} 
@@ -979,47 +979,6 @@ const Tasks: React.FC = () => {
                       {campaign.title}
                     </FilterButton>
                   ))}
-                  {campaigns.length > 3 && (
-                    <FilterButton
-                      onClick={() => setShowMoreCampaigns(!showMoreCampaigns)}
-                    >
-                      {showMoreCampaigns ? 'Less...' : 'More...'}
-                    </FilterButton>
-                  )}
-                  {showMoreCampaigns && (
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '8px', 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        background: 'white', 
-                        padding: '12px', 
-                        borderRadius: '8px', 
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)', 
-                        marginTop: '8px',
-                        zIndex: 100,
-                        maxHeight: '300px',
-                        overflowY: 'auto'
-                      }}
-                    >
-                      {campaigns.slice(3).map(campaign => (
-                        <FilterButton 
-                          key={campaign.id}
-                          $active={selectedCampaign === campaign.id ? true : undefined} 
-                          onClick={() => {
-                            setSelectedCampaign(campaign.id);
-                            setShowMoreCampaigns(false);
-                          }}
-                          style={{ width: '100%', justifyContent: 'flex-start' }}
-                        >
-                          {campaign.title}
-                        </FilterButton>
-                      ))}
-                    </div>
-                  )}
                 </FiltersRow>
               </FilterGroup>
             )}
