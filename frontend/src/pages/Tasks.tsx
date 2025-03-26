@@ -242,6 +242,7 @@ const TaskCard = styled.div<{ $priority: string }>`
   transition: all ${({ theme }) => theme.transitions.fast};
   border: 1px solid ${({ theme }) => theme.colors.ui.divider};
   position: relative;
+  cursor: pointer;
   
   &:hover {
     box-shadow: ${({ theme }) => theme.shadows.md};
@@ -979,11 +980,52 @@ const Tasks: React.FC = () => {
                   ))}
                   {campaigns.length > 3 && (
                     <FilterButton
-                      onClick={() => {}}
+                      onClick={() => {
+                        const campaignSelector = document.getElementById('campaignSelector');
+                        if (campaignSelector) {
+                          campaignSelector.style.display = campaignSelector.style.display === 'none' ? 'flex' : 'none';
+                        }
+                      }}
                     >
                       More...
                     </FilterButton>
                   )}
+                  <div 
+                    id="campaignSelector" 
+                    style={{ 
+                      display: 'none', 
+                      flexDirection: 'column', 
+                      gap: '8px', 
+                      position: 'absolute', 
+                      top: '100%', 
+                      left: '0', 
+                      background: 'white', 
+                      padding: '12px', 
+                      borderRadius: '8px', 
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)', 
+                      marginTop: '8px',
+                      zIndex: 100,
+                      maxHeight: '300px',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {campaigns.slice(3).map(campaign => (
+                      <FilterButton 
+                        key={campaign.id}
+                        $active={selectedCampaign === campaign.id ? true : undefined} 
+                        onClick={() => {
+                          setSelectedCampaign(campaign.id);
+                          const campaignSelector = document.getElementById('campaignSelector');
+                          if (campaignSelector) {
+                            campaignSelector.style.display = 'none';
+                          }
+                        }}
+                        style={{ width: '100%', justifyContent: 'flex-start' }}
+                      >
+                        {campaign.title}
+                      </FilterButton>
+                    ))}
+                  </div>
                 </FiltersRow>
               </FilterGroup>
             )}
@@ -1042,7 +1084,15 @@ const Tasks: React.FC = () => {
                 </EmptyState>
               ) : (
                 getTasksByStatus('todo').map(task => (
-                  <TaskCard key={task.id} $priority={task.priority}>
+                  <TaskCard 
+                    key={task.id} 
+                    $priority={task.priority}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setEditingTask(task);
+                      setShowAddModal(true);
+                    }}
+                  >
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
                       <PriorityBadge $priority={task.priority}>
@@ -1112,7 +1162,15 @@ const Tasks: React.FC = () => {
                 </EmptyState>
               ) : (
                 getTasksByStatus('in_progress').map(task => (
-                  <TaskCard key={task.id} $priority={task.priority}>
+                  <TaskCard 
+                    key={task.id} 
+                    $priority={task.priority}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setEditingTask(task);
+                      setShowAddModal(true);
+                    }}
+                  >
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
                       <PriorityBadge $priority={task.priority}>
@@ -1174,7 +1232,15 @@ const Tasks: React.FC = () => {
                 </EmptyState>
               ) : (
                 getTasksByStatus('blocked').map(task => (
-                  <TaskCard key={task.id} $priority={task.priority}>
+                  <TaskCard 
+                    key={task.id} 
+                    $priority={task.priority}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setEditingTask(task);
+                      setShowAddModal(true);
+                    }}
+                  >
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
                       <PriorityBadge $priority={task.priority}>
@@ -1236,7 +1302,15 @@ const Tasks: React.FC = () => {
                 </EmptyState>
               ) : (
                 getTasksByStatus('done').map(task => (
-                  <TaskCard key={task.id} $priority={task.priority}>
+                  <TaskCard 
+                    key={task.id} 
+                    $priority={task.priority}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setEditingTask(task);
+                      setShowAddModal(true);
+                    }}
+                  >
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
                       <PriorityBadge $priority={task.priority}>

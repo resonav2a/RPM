@@ -57,8 +57,11 @@ BEGIN
   END IF;
 END $$;
 
+-- Drop the existing task_dependencies table if it exists
+DROP TABLE IF EXISTS task_dependencies CASCADE;
+
 -- Now create task_dependencies table
-CREATE TABLE IF NOT EXISTS task_dependencies (
+CREATE TABLE task_dependencies (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   parent_task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   dependent_task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -69,7 +72,7 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
   -- Prevent duplicate dependencies
   CONSTRAINT unique_task_dependency UNIQUE (parent_task_id, dependent_task_id),
   -- Prevent self-referencing dependencies
-  CONSTRAINT prevent_self_dependency CHECK (parent_task_id \!= dependent_task_id)
+  CONSTRAINT prevent_self_dependency CHECK (parent_task_id != dependent_task_id)
 );
 
 -- Create indexes for performance

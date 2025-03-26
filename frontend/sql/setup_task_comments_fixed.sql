@@ -57,8 +57,12 @@ BEGIN
   END IF;
 END $$;
 
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS task_comment_reactions CASCADE;
+DROP TABLE IF EXISTS task_comments CASCADE;
+
 -- Create task_comments table
-CREATE TABLE IF NOT EXISTS task_comments (
+CREATE TABLE task_comments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
@@ -70,7 +74,7 @@ CREATE TABLE IF NOT EXISTS task_comments (
 );
 
 -- Create task_comment_reactions table for emoji reactions
-CREATE TABLE IF NOT EXISTS task_comment_reactions (
+CREATE TABLE task_comment_reactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   comment_id UUID NOT NULL REFERENCES task_comments(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
