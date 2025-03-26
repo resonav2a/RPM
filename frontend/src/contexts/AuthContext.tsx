@@ -43,12 +43,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     
     // Get the site URL from environment variable or use window.location.origin
-    const siteUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+    // In production, always prefer the VITE_PUBLIC_URL environment variable
+    let siteUrl = '';
+    
+    // Check if we're in a production environment (Netlify)
+    if (import.meta.env.PROD) {
+      siteUrl = import.meta.env.VITE_PUBLIC_URL;
+      console.log('Using production URL for redirect:', siteUrl);
+    } else {
+      // For local development, use the current origin
+      siteUrl = window.location.origin;
+      console.log('Using development URL for redirect:', siteUrl);
+    }
     
     // For deployed sites, ensure it's using https
     const secureRedirectUrl = siteUrl.replace('http://', 'https://');
     
-    console.log('Auth redirect URL:', secureRedirectUrl);
+    console.log('Final auth redirect URL:', secureRedirectUrl);
     
     const { error } = await supabase.auth.signInWithOtp({ 
       email,

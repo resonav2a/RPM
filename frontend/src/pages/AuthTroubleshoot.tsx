@@ -1,123 +1,212 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
+import { FiAlertCircle, FiArrowLeft, FiCheckCircle, FiInfo } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import { extractAndProcessAuthToken } from '../utils/authRedirect';
+import { useAuth } from '../contexts/AuthContext';
+import Button from '../components/ui/Button';
 
 const Container = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
-`;
-
-const Header = styled.header`
-  margin-bottom: 2rem;
-`;
-
-const Title = styled.h1`
-  color: #333;
-  margin-bottom: 0.5rem;
-`;
-
-const Subtitle = styled.p`
-  color: #666;
-  font-size: 1.1rem;
+  padding: ${({ theme }) => theme.spacing.xl};
+  background: ${({ theme }) => `
+    linear-gradient(
+      135deg, 
+      ${theme.colors.primary.light}15, 
+      ${theme.colors.secondary.light}10
+    )
+  `};
 `;
 
 const Card = styled.div`
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  box-shadow: ${({ theme }) => theme.shadows.lg};
+  padding: ${({ theme }) => theme.spacing.xl};
+  width: 100%;
+  max-width: 480px;
 `;
 
-const CardTitle = styled.h2`
-  color: #333;
-  margin-top: 0;
-  margin-bottom: 1rem;
+const Title = styled.h1`
+  font-size: ${({ theme }) => theme.typography.h2.fontSize};
+  font-weight: ${({ theme }) => theme.typography.h2.fontWeight};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  color: ${({ theme }) => theme.colors.text.primary};
 `;
 
-const Button = styled.button`
-  background: #5c6bc0;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  margin-top: 1rem;
+const Description = styled.p`
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+`;
+
+const Section = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  padding: ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.ui.hover};
+`;
+
+const SectionTitle = styled.h2`
+  font-size: ${({ theme }) => theme.typography.h4.fontSize};
+  font-weight: ${({ theme }) => theme.typography.h4.fontWeight};
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  color: ${({ theme }) => theme.colors.text.primary};
+  display: flex;
+  align-items: center;
   
-  &:hover {
-    background: #4a5ab9;
-  }
-  
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
+  svg {
+    margin-right: ${({ theme }) => theme.spacing.xs};
   }
 `;
 
 const Input = styled.input`
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  margin-bottom: 1rem;
+  border: 1px solid ${({ theme }) => theme.colors.ui.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: ${({ theme }) => theme.typography.body1.fontSize};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  color: ${({ theme }) => theme.colors.text.primary};
   
   &:focus {
     outline: none;
-    border-color: #5c6bc0;
+    border-color: ${({ theme }) => theme.colors.primary.main};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.primary.main}20;
   }
 `;
 
 const InfoBox = styled.div<{ type: 'info' | 'success' | 'error' }>`
-  background: ${({ type }) => 
-    type === 'info' ? '#e3f2fd' : 
-    type === 'success' ? '#e8f5e9' : 
-    '#ffebee'
+  background: ${({ type, theme }) => 
+    type === 'info' ? theme.colors.primary.light + '15' : 
+    type === 'success' ? theme.colors.status.success + '15' : 
+    theme.colors.status.error + '15'
   };
-  border-left: 4px solid ${({ type }) => 
-    type === 'info' ? '#2196f3' : 
-    type === 'success' ? '#4caf50' : 
-    '#f44336'
+  border-left: 4px solid ${({ type, theme }) => 
+    type === 'info' ? theme.colors.primary.main : 
+    type === 'success' ? theme.colors.status.success : 
+    theme.colors.status.error
   };
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: 4px;
+  padding: ${({ theme }) => theme.spacing.md};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+`;
+
+const LoginLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.primary.main};
+  text-decoration: none;
+  margin-top: ${({ theme }) => theme.spacing.lg};
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  
+  svg {
+    margin-right: ${({ theme }) => theme.spacing.xs};
+  }
+  
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary.dark};
+  }
+`;
+
+const InfoText = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  color: ${({ theme }) => theme.colors.text.secondary};
+  
+  strong {
+    display: block;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    margin-bottom: ${({ theme }) => theme.spacing.xs};
+  }
+`;
+
+const SuccessMessage = styled.div`
+  display: flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.status.success};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  
+  svg {
+    margin-right: ${({ theme }) => theme.spacing.xs};
+  }
+`;
+
+const ErrorMessage = styled.div`
+  color: ${({ theme }) => theme.colors.status.error};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+`;
+
+const Code = styled.code`
+  background: ${({ theme }) => theme.colors.ui.background};
+  padding: ${({ theme }) => theme.spacing.xs};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  font-family: monospace;
+  font-size: 0.9em;
+  overflow-wrap: break-word;
+  display: inline-block;
+  margin: 0 ${({ theme }) => theme.spacing.xs};
+`;
+
+const AuthDebugInfo = styled.pre`
+  background: ${({ theme }) => theme.colors.ui.background};
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  font-family: monospace;
+  font-size: 0.8em;
+  overflow-x: auto;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-top: ${({ theme }) => theme.spacing.md};
+  max-height: 120px;
 `;
 
 const AuthTroubleshoot = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authInfo, setAuthInfo] = useState<any>(null);
+  const [manualAuthSuccess, setManualAuthSuccess] = useState(false);
   
-  // Check current auth status
+  // Get debugging info about the current auth state
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setIsAuthenticated(true);
+    const getAuthDebugInfo = async () => {
+      try {
+        const session = await supabase.auth.getSession();
+        setAuthInfo({
+          session: session?.data?.session ? 'Present' : 'Not present',
+          user: session?.data?.session?.user ? 'Present' : 'Not present',
+          url: window.location.href,
+          hasAuthParams: window.location.hash.includes('access_token') || 
+                         window.location.search.includes('access_token'),
+          redirectUrlEnv: import.meta.env.VITE_PUBLIC_URL || 'Not set',
+          isProduction: import.meta.env.PROD ? 'Yes' : 'No'
+        });
+      } catch (error) {
+        console.error('Error getting auth debug info:', error);
       }
     };
     
-    checkAuth();
+    getAuthDebugInfo();
     
-    // Try automatic token extraction first
+    // Try automatic token extraction on component mount
     const autoProcess = async () => {
       try {
         const result = await extractAndProcessAuthToken();
         if (result && !result.error) {
           setStatus('success');
           setMessage('Authentication completed automatically!');
-          setIsAuthenticated(true);
+          setManualAuthSuccess(true);
+          
+          // Navigate to dashboard after a brief delay
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 1500);
         }
       } catch (err) {
         console.error('Auto token processing error:', err);
@@ -125,9 +214,9 @@ const AuthTroubleshoot = () => {
     };
     
     autoProcess();
-  }, []);
+  }, [navigate]);
   
-  const handleTokenSubmit = async () => {
+  const handleManualAuth = async () => {
     if (!token.trim()) {
       setStatus('error');
       setMessage('Please enter a valid token');
@@ -150,12 +239,12 @@ const AuthTroubleshoot = () => {
       if (data.session) {
         setStatus('success');
         setMessage('Authentication successful! Redirecting to dashboard...');
-        setIsAuthenticated(true);
+        setManualAuthSuccess(true);
         
         // Navigate to dashboard after a brief delay
         setTimeout(() => {
-          navigate('/');
-        }, 2000);
+          navigate('/dashboard');
+        }, 1500);
       } else {
         setStatus('error');
         setMessage('Authentication failed. The token may be invalid or expired.');
@@ -167,80 +256,137 @@ const AuthTroubleshoot = () => {
     }
   };
   
-  const handleGoToLogin = () => {
-    navigate('/login');
-  };
-  
-  const handleGoToDashboard = () => {
-    navigate('/');
+  // Try extracting token from URL parameters directly
+  const handleExtractFromURL = async () => {
+    setStatus('processing');
+    
+    try {
+      const result = await extractAndProcessAuthToken();
+      
+      if (result && !result.error) {
+        setStatus('success');
+        setMessage('Authentication completed! Redirecting...');
+        setManualAuthSuccess(true);
+        
+        // Redirect to dashboard after successful manual auth
+        setTimeout(() => navigate('/dashboard'), 1500);
+      } else {
+        setStatus('error');
+        setMessage('No valid auth token found in URL parameters.');
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage(error instanceof Error ? error.message : 'An unknown error occurred');
+    }
   };
   
   return (
     <Container>
-      <Header>
-        <Title>Authentication Troubleshooter</Title>
-        <Subtitle>Fix login issues with your RPM account</Subtitle>
-      </Header>
-      
-      {isAuthenticated ? (
-        <Card>
-          <CardTitle>Already Authenticated</CardTitle>
-          <p>You are already logged in to your RPM account.</p>
-          <Button onClick={handleGoToDashboard}>Go to Dashboard</Button>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardTitle>Authentication Helper</CardTitle>
+      <Card>
+        <Title>Authentication Help</Title>
+        <Description>
+          If you're having trouble logging in, this page can help troubleshoot common issues.
+        </Description>
+        
+        <Section>
+          <SectionTitle>
+            <FiAlertCircle size={18} /> Current Status
+          </SectionTitle>
+          {isLoading ? (
+            <InfoText>Checking authentication status...</InfoText>
+          ) : user ? (
+            <>
+              <SuccessMessage>
+                <FiCheckCircle /> You are successfully logged in
+              </SuccessMessage>
+              <Button 
+                variant="primary" 
+                fullWidth 
+                onClick={() => navigate('/dashboard')}
+                style={{ marginTop: '16px' }}
+              >
+                Go to Dashboard
+              </Button>
+            </>
+          ) : (
+            <>
+              <InfoText>
+                You are not currently logged in. If you came here from a login email link,
+                your authentication token might not have been processed correctly.
+              </InfoText>
+              
+              {status === 'success' && (
+                <InfoBox type="success">
+                  <p>{message}</p>
+                </InfoBox>
+              )}
+              
+              {status === 'error' && (
+                <InfoBox type="error">
+                  <p>{message}</p>
+                </InfoBox>
+              )}
+              
+              <SectionTitle>
+                <FiInfo size={16} /> Try these fixes:
+              </SectionTitle>
+              
+              <Button 
+                variant="primary" 
+                fullWidth 
+                onClick={handleExtractFromURL}
+                style={{ marginTop: '16px', marginBottom: '8px' }}
+                loading={status === 'processing'}
+              >
+                Try Automatic Fix
+              </Button>
+              
+              <InfoText>
+                <strong>Option 2: Manual token entry</strong>
+                Copy the token from your URL after <Code>access_token=</Code> and paste it below:
+              </InfoText>
+              
+              <Input
+                type="text"
+                placeholder="Paste your access token here"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+              />
+              
+              <Button 
+                variant="secondary" 
+                fullWidth
+                onClick={handleManualAuth}
+                disabled={status === 'processing' || !token.trim()}
+              >
+                Complete Manual Authentication
+              </Button>
+            </>
+          )}
+        </Section>
+        
+        <Section>
+          <SectionTitle>Common Issues</SectionTitle>
+          <InfoText>
+            <strong>Email link redirects to wrong URL:</strong> If your magic login link is redirecting
+            to localhost instead of the deployed site, the app configuration needs to be fixed. We are 
+            working on resolving this issue.
             
-            {status === 'success' && (
-              <InfoBox type="success">
-                <p>{message}</p>
-              </InfoBox>
-            )}
-            
-            {status === 'error' && (
-              <InfoBox type="error">
-                <p>{message}</p>
-              </InfoBox>
-            )}
-            
-            <p>
-              This tool helps you manually complete your login if the automatic redirect didn't work.
-              When you clicked the magic link in your email, it should have brought you to this app with
-              an authentication token.
-            </p>
-            
-            <p>
-              <strong>Option 1:</strong> Copy the token from your URL after <code>#access_token=</code> or <code>?access_token=</code> and 
-              paste it below:
-            </p>
-            
-            <Input
-              type="text"
-              placeholder="Paste your access token here"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-            
-            <Button 
-              onClick={handleTokenSubmit}
-              disabled={status === 'processing' || !token.trim()}
-            >
-              {status === 'processing' ? 'Processing...' : 'Complete Authentication'}
-            </Button>
-          </Card>
-          
-          <Card>
-            <CardTitle>Start Over</CardTitle>
-            <p>
-              If you'd prefer to start the login process again, you can return to the login page
-              and request a new magic link.
-            </p>
-            <Button onClick={handleGoToLogin}>Back to Login</Button>
-          </Card>
-        </>
-      )}
+            <strong>Email never arrived:</strong> Check your spam folder, or request a new login link.
+            You can also try using a different email address.
+          </InfoText>
+        </Section>
+        
+        {authInfo && (
+          <AuthDebugInfo>
+            {JSON.stringify(authInfo, null, 2)}
+          </AuthDebugInfo>
+        )}
+        
+        <LoginLink to="/login">
+          <FiArrowLeft size={14} /> Back to login
+        </LoginLink>
+      </Card>
     </Container>
   );
 };

@@ -19,6 +19,8 @@ export const handleAuthRedirect = async (): Promise<boolean> => {
   }
   
   try {
+    console.log('Detected auth parameters in URL, processing auth redirect...');
+    
     // Process the auth parameters
     const { data, error } = await supabase.auth.getSession();
     
@@ -31,18 +33,30 @@ export const handleAuthRedirect = async (): Promise<boolean> => {
     if (data?.session) {
       console.log('Authentication successful via redirect');
       
-      // Clear the URL hash to remove the token for security
-      // Only update the hash, not the full URL (to maintain routing)
+      // Clear the URL hash and search params to remove the token for security
+      // Only update these parts, not the full URL (to maintain routing)
       if (window.history.replaceState) {
-        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+        // Get just the path without hash or search params
+        window.history.replaceState(
+          null, 
+          document.title, 
+          window.location.pathname
+        );
       } else {
+        // Fallback for older browsers
         window.location.hash = '';
       }
       
       return true;
+    } else {
+      console.log('No session data after processing auth redirect');
+      // Try fallback method
+      return await extractAndProcessAuthToken() !== null;
     }
   } catch (err) {
     console.error('Error processing auth redirect:', err);
+    // Try fallback method
+    return await extractAndProcessAuthToken() !== null;
   }
   
   return false;
