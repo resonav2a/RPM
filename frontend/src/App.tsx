@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { createGlobalStyle } from 'styled-components';
+import { ThemeProvider, createGlobalStyle } from 'styled-components';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import theme from './utils/theme';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
@@ -23,17 +24,51 @@ const GlobalStyle = createGlobalStyle`
   }
   
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
     margin: 0;
     padding: 0;
-    background-color: #f7f9fc;
-    color: #333;
+    background-color: ${({ theme }) => theme.colors.ui.background};
+    color: ${({ theme }) => theme.colors.text.primary};
     line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: ${({ theme }) => theme.colors.text.primary};
+    margin-top: 0;
+    line-height: 1.2;
+  }
+
+  a {
+    color: ${({ theme }) => theme.colors.primary.main};
+    text-decoration: none;
+    transition: color ${({ theme }) => theme.transitions.fast};
+    
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary.dark};
+    }
   }
 
   button, input, select, textarea {
     font-family: inherit;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.ui.divider};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c1c9d6;
   }
 `;
 
@@ -43,7 +78,34 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   
   if (isLoading) {
     // While checking auth state, show nothing or a loading indicator
-    return <div>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '1rem',
+        background: theme.colors.ui.background
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          border: `3px solid ${theme.colors.ui.divider}`,
+          borderTopColor: theme.colors.primary.main,
+          animation: 'spin 1s linear infinite'
+        }} />
+        <div>Loading...</div>
+        <style>
+          {`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}
+        </style>
+      </div>
+    );
   }
   
   if (!user) {
@@ -95,7 +157,7 @@ const DebugView = () => {
       padding: '2rem', 
       maxWidth: '800px', 
       margin: '0 auto',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
+      fontFamily: theme.typography.fontFamily
     }}>
       <h1>RPM Application Status</h1>
       <p>Status: <strong>{status}</strong></p>
@@ -132,7 +194,7 @@ const DebugView = () => {
 };
 
 function App() {
-  const [debugMode, setDebugMode] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
   const [processingAuth, setProcessingAuth] = useState(false);
   
   // Check for auth redirects as soon as the app loads
@@ -163,117 +225,152 @@ function App() {
   
   // Exit debug mode after 10 seconds if everything is working
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebugMode(false);
-    }, 10000);
-    
-    return () => clearTimeout(timer);
+    // Only for development - start in debug mode to test connection
+    if (import.meta.env.DEV) {
+      setDebugMode(true);
+      const timer = setTimeout(() => {
+        setDebugMode(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
   }, []);
   
   if (processingAuth) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <h2>Completing Authentication...</h2>
+      <ThemeProvider theme={theme}>
+        <GlobalStyle />
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh', 
+          background: theme.colors.ui.background
+        }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            border: `3px solid ${theme.colors.ui.divider}`,
+            borderTopColor: theme.colors.primary.main,
+            animation: 'spin 1s linear infinite',
+            marginBottom: '1.5rem'
+          }} />
+          <h2>Completing Authentication</h2>
           <p>Please wait while we log you in.</p>
+          <style>
+            {`
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}
+          </style>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
   
   if (debugMode) {
-    return <DebugView />;
+    return (
+      <ThemeProvider theme={theme}>
+        <GlobalStyle />
+        <DebugView />
+      </ThemeProvider>
+    );
   }
 
   return (
-    <AuthProvider>
+    <ThemeProvider theme={theme}>
       <GlobalStyle />
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/tasks" element={
-            <ProtectedRoute>
-              <Layout>
-                <Tasks />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/marketing" element={
-            <ProtectedRoute>
-              <Layout>
-                <Marketing />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Planner View (merged Roadmap and Weekly Planning) */}
-          <Route path="/planner" element={
-            <ProtectedRoute>
-              <Layout>
-                <WeeklyPlanning />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Legacy routes redirected to Planner */}
-          <Route path="/roadmap" element={<Navigate to="/planner" replace />} />
-          <Route path="/weekly" element={<Navigate to="/planner" replace />} />
-          
-          {/* Campaign-specific roadmap view */}
-          <Route path="/roadmap/:campaignId" element={
-            <ProtectedRoute>
-              <Layout>
-                <WeeklyPlanning />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Today Mode/Focus View */}
-          <Route path="/today" element={
-            <ProtectedRoute>
-              <Layout>
-                <TodayMode />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/docs" element={
-            <ProtectedRoute>
-              <Layout>
-                <Documentation />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Layout>
-                <Profile />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          
-          {/* Auth troubleshoot route */}
-          <Route path="/auth-help" element={<AuthTroubleshoot />} />
-          
-          {/* Debug route */}
-          <Route path="/debug" element={<DebugView />} />
-          
-          {/* Catch-all route for 404 */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/tasks" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Tasks />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/marketing" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Marketing />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Planner View (merged Roadmap and Weekly Planning) */}
+            <Route path="/planner" element={
+              <ProtectedRoute>
+                <Layout>
+                  <WeeklyPlanning />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Legacy routes redirected to Planner */}
+            <Route path="/roadmap" element={<Navigate to="/planner" replace />} />
+            <Route path="/weekly" element={<Navigate to="/planner" replace />} />
+            
+            {/* Campaign-specific roadmap view */}
+            <Route path="/roadmap/:campaignId" element={
+              <ProtectedRoute>
+                <Layout>
+                  <WeeklyPlanning />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Today Mode/Focus View */}
+            <Route path="/today" element={
+              <ProtectedRoute>
+                <Layout>
+                  <TodayMode />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/docs" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Documentation />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Auth troubleshoot route */}
+            <Route path="/auth-help" element={<AuthTroubleshoot />} />
+            
+            {/* Debug route */}
+            <Route path="/debug" element={<DebugView />} />
+            
+            {/* Catch-all route for 404 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

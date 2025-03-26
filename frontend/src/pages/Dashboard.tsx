@@ -1,153 +1,286 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiCheckCircle, FiAlertCircle, FiClock, FiCalendar, FiFileText, FiLink, FiInfo } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { 
+  FiCheckCircle, 
+  FiAlertCircle, 
+  FiClock, 
+  FiCalendar, 
+  FiFileText, 
+  FiActivity,
+  FiTrendingUp,
+  FiBarChart2,
+  FiInfo,
+  FiChevronRight,
+  FiPlus
+} from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import Avatar from '../components/ui/Avatar';
 
 const DashboardContainer = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-`;
-
-const Card = styled.div`
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-`;
-
-const CardTitle = styled.h2`
-  font-size: 1.1rem;
-  color: #333;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const StatGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-`;
-
-const StatCard = styled.div`
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-`;
-
-const StatValue = styled.div`
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #5c6bc0;
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.875rem;
-  color: #666;
-  margin-top: 0.25rem;
-`;
-
-const TaskList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const TaskItem = styled.li`
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-
-  &:last-child {
-    border-bottom: none;
+  grid-template-columns: 1fr;
+  gap: ${({ theme }) => theme.spacing.xl};
+  
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    grid-template-columns: 3fr 1fr;
   }
 `;
 
-const TaskStatus = styled.span<{ status: string }>`
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: ${({ status }) => 
-    status === 'todo' ? '#f5b041' : 
-    status === 'in_progress' ? '#3498db' : 
-    status === 'blocked' ? '#e74c3c' : 
-    '#2ecc71'
-  };
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: ${({ theme }) => theme.spacing.md};
+  
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    grid-template-columns: repeat(4, 1fr);
+  }
 `;
 
-const TaskTitle = styled.span`
-  flex: 1;
-`;
-
-const TaskDueDate = styled.span`
-  font-size: 0.75rem;
-  color: #777;
-`;
-
-const EventList = styled.div`
+const MainContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const EventItem = styled.div`
+const FullWidthSection = styled.div`
+  grid-column: 1 / -1;
+`;
+
+const Sidebar = styled.div`
   display: flex;
-  align-items: flex-start;
-  padding: 0.75rem;
-  background: #f9f9f9;
-  border-radius: 6px;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const EventIcon = styled.div`
-  color: #5c6bc0;
+const Section = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
-const EventContent = styled.div`
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+`;
+
+const SectionTitle = styled.h2`
+  font-size: ${({ theme }) => theme.typography.h3.fontSize};
+  font-weight: ${({ theme }) => theme.typography.h3.fontWeight};
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const StatCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: ${({ theme }) => theme.spacing.lg};
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  box-shadow: ${({ theme }) => theme.shadows.sm};
+  transition: all ${({ theme }) => theme.transitions.fast};
+  
+  &:hover {
+    box-shadow: ${({ theme }) => theme.shadows.md};
+    transform: translateY(-2px);
+  }
+`;
+
+const StatValue = styled.div`
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text.primary};
+  margin-top: ${({ theme }) => theme.spacing.md};
+`;
+
+const StatLabel = styled.div`
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`;
+
+const StatIcon = styled.div<{ $color?: string }>`
+  width: 40px;
+  height: 40px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ $color, theme }) => $color ? $color : theme.colors.primary.light};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ $color, theme }) => $color ? 'white' : theme.colors.primary.main};
+`;
+
+const TaskList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const TaskItem = styled.div`
+  display: flex;
+  align-items: center;
+  padding: ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+  transition: all ${({ theme }) => theme.transitions.fast};
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.ui.hover};
+    transform: translateX(2px);
+  }
+`;
+
+const TaskContent = styled.div`
   flex: 1;
+  margin-left: ${({ theme }) => theme.spacing.md};
 `;
 
-const EventTitle = styled.div`
+const TaskTitle = styled.div`
   font-weight: 500;
+  color: ${({ theme }) => theme.colors.text.primary};
 `;
 
-const EventDate = styled.div`
-  font-size: 0.75rem;
-  color: #777;
-  margin-top: 0.25rem;
+const TaskMeta = styled.div`
+  display: flex;
+  align-items: center;
+  margin-top: ${({ theme }) => theme.spacing.xs};
+  font-size: ${({ theme }) => theme.typography.caption.fontSize};
+  color: ${({ theme }) => theme.colors.text.secondary};
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const TaskStatus = styled.span<{ $status: string }>`
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${({ $status, theme }) => 
+    $status === 'todo' ? theme.colors.taskStatus.todo : 
+    $status === 'in_progress' ? theme.colors.taskStatus.in_progress : 
+    $status === 'blocked' ? theme.colors.taskStatus.blocked : 
+    theme.colors.taskStatus.done};
+  margin-right: ${({ theme }) => theme.spacing.xs};
+`;
+
+const ActivityList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const ActivityItem = styled.div`
+  display: flex;
+  padding: ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.ui.card};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+`;
+
+const ActivityIcon = styled.div<{ $color?: string }>`
+  min-width: 36px;
+  height: 36px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ $color, theme }) => $color || theme.colors.ui.hover};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ $color, theme }) => $color ? 'white' : theme.colors.text.secondary};
+`;
+
+const ActivityContent = styled.div`
+  flex: 1;
+  margin-left: ${({ theme }) => theme.spacing.md};
+`;
+
+const ActivityTitle = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.text.primary};
+`;
+
+const ActivityTime = styled.div`
+  font-size: ${({ theme }) => theme.typography.caption.fontSize};
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-top: 2px;
+`;
+
+const SeeAllLink = styled(Link)`
+  display: flex;
+  align-items: center;
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  color: ${({ theme }) => theme.colors.primary.main};
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+  
+  svg {
+    margin-left: ${({ theme }) => theme.spacing.xs};
+  }
 `;
 
 const LoadingIndicator = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100px;
+  height: 200px;
   width: 100%;
-  color: #777;
-  font-size: 0.9rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
 `;
 
 const DebugPanel = styled.div`
-  background: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-top: 1rem;
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  padding: ${({ theme }) => theme.spacing.lg};
+  box-shadow: ${({ theme }) => theme.shadows.sm};
   overflow: auto;
   max-height: 400px;
 `;
 
-const DebugInfo = styled.pre`
-  font-family: monospace;
-  font-size: 0.8rem;
-  margin: 0;
-  white-space: pre-wrap;
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing.xl};
+  text-align: center;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  
+  svg {
+    font-size: 3rem;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    opacity: 0.5;
+  }
+  
+  p {
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  }
+`;
+
+const ProgressBar = styled.div<{ $progress: number }>`
+  width: 100%;
+  height: 8px;
+  background: ${({ theme }) => theme.colors.ui.hover};
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  overflow: hidden;
+  
+  &::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: ${({ $progress }) => `${$progress}%`};
+    background: ${({ theme }) => theme.colors.primary.main};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    transition: width 0.5s ease;
+  }
 `;
 
 const Dashboard: React.FC = () => {
@@ -167,6 +300,11 @@ const Dashboard: React.FC = () => {
   const [debugMode, setDebugMode] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [availableTables, setAvailableTables] = useState<string[]>([]);
+
+  // Progress calculation
+  const weeklyTasksProgress = taskStats.total > 0 
+    ? Math.round((taskStats.done / taskStats.total) * 100) 
+    : 0;
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -441,24 +579,7 @@ const Dashboard: React.FC = () => {
     
     if (item.type === 'campaign') return <FiCalendar />;
     
-    return <FiLink />;
-  };
-
-  // Function to format activity text
-  const getActivityText = (item: any) => {
-    if (item.type === 'task') {
-      return `Task ${item.status}: ${item.title}`;
-    }
-    
-    if (item.type === 'document') {
-      return `Document updated: ${item.title}`;
-    }
-    
-    if (item.type === 'campaign') {
-      return `Campaign ${item.status}: ${item.title}`;
-    }
-    
-    return item.title;
+    return <FiActivity />;
   };
 
   // Format relative time (e.g. "2 hours ago")
@@ -495,264 +616,412 @@ const Dashboard: React.FC = () => {
   if (isLoading) {
     return (
       <LoadingIndicator>
-        Loading dashboard data...
+        <div style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          border: '2px solid #e2e8f0',
+          borderTopColor: '#3d5afe',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <style>
+          {`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}
+        </style>
       </LoadingIndicator>
     );
   }
 
   return (
-    <DashboardContainer>
+    <>
       {/* Debug Panel */}
-      <Card style={{ gridColumn: '1 / -1' }}>
-        <CardTitle>
-          <FiInfo /> Supabase Connection Debug
-          <button 
-            onClick={() => setDebugMode(!debugMode)}
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            {debugMode ? 'Hide Details' : 'Show Details'}
-          </button>
-        </CardTitle>
-        
-        <div>
-          <p><strong>User ID:</strong> {user?.id || 'Not logged in'}</p>
-          <p><strong>Connected to Supabase:</strong> {debugInfo.connectionError ? '❌ No' : '✅ Yes'}</p>
-          <p><strong>Available Tables:</strong> {availableTables.length > 0 ? availableTables.join(', ') : 'None found'}</p>
-          
-          {availableTables.length === 0 && (
-            <div style={{ 
-              background: '#fff3cd', 
-              color: '#856404', 
-              padding: '0.75rem', 
-              borderRadius: '4px',
-              marginTop: '1rem' 
-            }}>
-              <h4 style={{ marginTop: 0 }}>Database Tables Not Found</h4>
-              <p>You need to set up the database tables in Supabase. Follow these steps:</p>
-              <ol>
-                <li>Go to <a href="https://app.supabase.com" target="_blank" rel="noopener noreferrer">https://app.supabase.com</a> and select your project</li>
-                <li>Navigate to the <strong>SQL Editor</strong> section</li>
-                <li>Open the file <code>setup_documents_table.sql</code> from your project</li>
-                <li>Copy <strong>ALL</strong> of its contents into the SQL Editor</li>
-                <li>Click the <strong>Run</strong> button to execute the SQL</li>
-                <li>Return to this app and click "Refresh Connection Info" below</li>
-              </ol>
+      {availableTables.length === 0 && (
+        <Card 
+          variant="elevated" 
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <FiInfo size={20} style={{ marginRight: '8px', color: '#f59e0b' }} />
+              Database Connection Status
             </div>
-          )}
-          
-          {debugMode && (
-            <DebugPanel>
-              <h4>Authentication Status</h4>
-              <ul style={{ listStyleType: 'none', padding: 0 }}>
-                <li>
-                  <strong>Authenticated:</strong> {debugInfo.authStatus?.isAuthenticated ? 
-                    '✅ Yes' : 
-                    '❌ No - Login required for RLS to work'}
-                </li>
-                {debugInfo.authStatus?.isAuthenticated && (
-                  <>
-                    <li><strong>User ID:</strong> {debugInfo.authStatus.userId}</li>
-                    <li><strong>Email:</strong> {debugInfo.authStatus.userEmail}</li>
-                  </>
-                )}
-              </ul>
-
-              <h4>Table Status</h4>
-              <ul style={{ listStyleType: 'none', padding: 0 }}>
-                <li>
-                  <strong>documents:</strong> {debugInfo.tablesStatus?.documents?.exists ? 
-                    '✅ Exists' : 
-                    '❌ Missing - Execute setup_documents_table.sql in Supabase SQL Editor'}
-                  {debugInfo.tablesStatus?.documents?.isPermissionIssue && (
-                    <span style={{ color: 'red', marginLeft: '8px' }}>
-                      ⚠️ Permission issue - Make sure you're logged in
-                    </span>
-                  )}
-                </li>
-                <li>
-                  <strong>tasks:</strong> {debugInfo.tablesStatus?.tasks?.exists ? 
-                    '✅ Exists' : 
-                    '❌ Missing - Execute setup_tasks_table.sql in Supabase SQL Editor'}
-                  {debugInfo.tablesStatus?.tasks?.isPermissionIssue && (
-                    <span style={{ color: 'red', marginLeft: '8px' }}>
-                      ⚠️ Permission issue - Make sure you're logged in
-                    </span>
-                  )}
-                </li>
-                <li>
-                  <strong>campaigns:</strong> {debugInfo.tablesStatus?.campaigns?.exists ? 
-                    '✅ Exists' : 
-                    '❌ Missing - Execute setup_campaigns_table.sql in Supabase SQL Editor'}
-                  {debugInfo.tablesStatus?.campaigns?.isPermissionIssue && (
-                    <span style={{ color: 'red', marginLeft: '8px' }}>
-                      ⚠️ Permission issue - Make sure you're logged in
-                    </span>
-                  )}
-                </li>
-              </ul>
-              
-              {debugInfo.hasPermissionIssues && (
-                <div style={{ 
-                  background: '#f8d7da', 
-                  color: '#721c24', 
-                  padding: '0.75rem', 
-                  borderRadius: '4px',
-                  marginTop: '1rem' 
-                }}>
-                  <h4 style={{ marginTop: 0 }}>Authentication Issue Detected</h4>
-                  <p>You appear to have permission issues with your tables. This is likely because:</p>
-                  <ol>
-                    <li>You are not logged in (Row Level Security requires authentication)</li>
-                    <li>The tables have RLS policies that are restricting access</li>
-                  </ol>
-                  <p><strong>Solution:</strong> Make sure you're logged in by visiting the Login page first.</p>
-                </div>
-              )}
-              
-              <h4>Environment Variables</h4>
-              <p>VITE_SUPABASE_URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</p>
-              <p>VITE_SUPABASE_ANON_KEY: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}</p>
-              
-              <h4>Raw Debug Information</h4>
-              <DebugInfo>{JSON.stringify(debugInfo, null, 2)}</DebugInfo>
-              
-              <div style={{ marginTop: '1rem' }}>
-                <button 
-                  onClick={checkSupabaseConnection}
-                  style={{ 
-                    padding: '0.5rem 1rem', 
-                    background: '#5c6bc0', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Refresh Connection Info
-                </button>
+          }
+          headerAction={
+            <Button 
+              variant="outlined" 
+              size="small" 
+              onClick={() => setDebugMode(!debugMode)}
+            >
+              {debugMode ? 'Hide Details' : 'Show Details'}
+            </Button>
+          }
+          style={{ marginBottom: '1.5rem' }}
+        >
+          <div>
+            <p><strong>User ID:</strong> {user?.id || 'Not logged in'}</p>
+            <p><strong>Connected to Supabase:</strong> {debugInfo.connectionError ? '❌ No' : '✅ Yes'}</p>
+            <p><strong>Available Tables:</strong> {availableTables.length > 0 ? availableTables.join(', ') : 'None found'}</p>
+            
+            {availableTables.length === 0 && (
+              <div style={{ 
+                background: '#fffbeb', 
+                color: '#92400e', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                marginTop: '1rem' 
+              }}>
+                <h4 style={{ marginTop: 0 }}>Database Tables Not Found</h4>
+                <p>You need to set up the database tables in Supabase. Follow these steps:</p>
+                <ol>
+                  <li>Go to <a href="https://app.supabase.com" target="_blank" rel="noopener noreferrer">https://app.supabase.com</a> and select your project</li>
+                  <li>Navigate to the <strong>SQL Editor</strong> section</li>
+                  <li>Open the file <code>setup_documents_table.sql</code> from your project</li>
+                  <li>Copy <strong>ALL</strong> of its contents into the SQL Editor</li>
+                  <li>Click the <strong>Run</strong> button to execute the SQL</li>
+                  <li>Return to this app and click "Refresh Connection Info" below</li>
+                </ol>
               </div>
-            </DebugPanel>
-          )}
-        </div>
-      </Card>
+            )}
+            
+            {debugMode && (
+              <DebugPanel>
+                <h4>Authentication Status</h4>
+                <ul style={{ listStyleType: 'none', padding: 0 }}>
+                  <li>
+                    <strong>Authenticated:</strong> {debugInfo.authStatus?.isAuthenticated ? 
+                      '✅ Yes' : 
+                      '❌ No - Login required for RLS to work'}
+                  </li>
+                  {debugInfo.authStatus?.isAuthenticated && (
+                    <>
+                      <li><strong>User ID:</strong> {debugInfo.authStatus.userId}</li>
+                      <li><strong>Email:</strong> {debugInfo.authStatus.userEmail}</li>
+                    </>
+                  )}
+                </ul>
+
+                <h4>Table Status</h4>
+                <ul style={{ listStyleType: 'none', padding: 0 }}>
+                  <li>
+                    <strong>documents:</strong> {debugInfo.tablesStatus?.documents?.exists ? 
+                      '✅ Exists' : 
+                      '❌ Missing - Execute setup_documents_table.sql in Supabase SQL Editor'}
+                    {debugInfo.tablesStatus?.documents?.isPermissionIssue && (
+                      <span style={{ color: 'red', marginLeft: '8px' }}>
+                        ⚠️ Permission issue - Make sure you're logged in
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    <strong>tasks:</strong> {debugInfo.tablesStatus?.tasks?.exists ? 
+                      '✅ Exists' : 
+                      '❌ Missing - Execute setup_tasks_table.sql in Supabase SQL Editor'}
+                    {debugInfo.tablesStatus?.tasks?.isPermissionIssue && (
+                      <span style={{ color: 'red', marginLeft: '8px' }}>
+                        ⚠️ Permission issue - Make sure you're logged in
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    <strong>campaigns:</strong> {debugInfo.tablesStatus?.campaigns?.exists ? 
+                      '✅ Exists' : 
+                      '❌ Missing - Execute setup_campaigns_table.sql in Supabase SQL Editor'}
+                    {debugInfo.tablesStatus?.campaigns?.isPermissionIssue && (
+                      <span style={{ color: 'red', marginLeft: '8px' }}>
+                        ⚠️ Permission issue - Make sure you're logged in
+                      </span>
+                    )}
+                  </li>
+                </ul>
+                
+                <div style={{ marginTop: '1rem' }}>
+                  <Button
+                    onClick={checkSupabaseConnection}
+                    variant="primary"
+                    size="small"
+                  >
+                    Refresh Connection Info
+                  </Button>
+                </div>
+              </DebugPanel>
+            )}
+          </div>
+        </Card>
+      )}
       
-      {/* Regular Dashboard */}
-      <Card>
-        <CardTitle>
-          <FiCheckCircle /> Task Overview
-        </CardTitle>
-        <StatGrid>
-          <StatCard>
-            <StatValue>{taskStats.total}</StatValue>
-            <StatLabel>Total Tasks</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{taskStats.done}</StatValue>
-            <StatLabel>Completed</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{taskStats.inProgress}</StatValue>
-            <StatLabel>In Progress</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{taskStats.blocked}</StatValue>
-            <StatLabel>Blocked</StatLabel>
-          </StatCard>
-        </StatGrid>
-      </Card>
-
-      <Card>
-        <CardTitle>
-          <FiAlertCircle /> Priority Tasks
-        </CardTitle>
-        {priorityTasks.length > 0 ? (
-          <TaskList>
-            {priorityTasks.map(task => (
-              <TaskItem key={task.id}>
-                <TaskStatus status={task.status} />
-                <TaskTitle>{task.title}</TaskTitle>
-                {task.dueDate && (
-                  <TaskDueDate>Due: {new Date(task.dueDate).toLocaleDateString()}</TaskDueDate>
-                )}
-              </TaskItem>
-            ))}
-          </TaskList>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#777' }}>
-            No priority tasks found
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <CardTitle>
-          <FiClock /> Recent Activity
-        </CardTitle>
-        {recentActivity.length > 0 ? (
-          <EventList>
-            {recentActivity.map((item, index) => (
-              <EventItem key={`${item.type}-${item.id}`}>
-                <EventIcon>{getActivityIcon(item)}</EventIcon>
-                <EventContent>
-                  <EventTitle>{getActivityText(item)}</EventTitle>
-                  <EventDate>{formatRelativeTime(item.updated_at)}</EventDate>
-                </EventContent>
-              </EventItem>
-            ))}
-          </EventList>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#777' }}>
-            No recent activity found
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <CardTitle>
-          <FiCalendar /> Upcoming Campaigns
-        </CardTitle>
-        {campaigns.length > 0 ? (
-          <EventList>
-            {campaigns.map(campaign => (
-              <EventItem key={campaign.id}>
-                <EventIcon><FiCalendar /></EventIcon>
-                <EventContent>
-                  <EventTitle>{campaign.title}</EventTitle>
-                  <EventDate>{new Date(campaign.start_date).toLocaleDateString()}</EventDate>
-                </EventContent>
-              </EventItem>
-            ))}
-          </EventList>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#777' }}>
-            No upcoming campaigns found
-          </div>
-        )}
-      </Card>
-      
-      <Card>
-        <CardTitle>
-          <FiFileText /> Recent Documents
-        </CardTitle>
-        {documents.length > 0 ? (
-          <EventList>
-            {documents.map(doc => (
-              <EventItem key={doc.id}>
-                <EventIcon><FiFileText /></EventIcon>
-                <EventContent>
-                  <EventTitle>{doc.title}</EventTitle>
-                  <EventDate>{formatRelativeTime(doc.updated_at)}</EventDate>
-                </EventContent>
-              </EventItem>
-            ))}
-          </EventList>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#777' }}>
-            No documents found
-          </div>
-        )}
-      </Card>
-    </DashboardContainer>
+      {/* Main Dashboard */}
+      <DashboardContainer>
+        <FullWidthSection>
+          <SectionHeader>
+            <SectionTitle>Weekly Progress</SectionTitle>
+          </SectionHeader>
+          
+          <StatsGrid>
+            <StatCard>
+              <StatIcon $color="#e0f2fe">
+                <FiBarChart2 color="#0284c7" />
+              </StatIcon>
+              <StatValue>{taskStats.total}</StatValue>
+              <StatLabel>Total Tasks</StatLabel>
+            </StatCard>
+            
+            <StatCard>
+              <StatIcon $color="#dcfce7">
+                <FiCheckCircle color="#16a34a" />
+              </StatIcon>
+              <StatValue>{taskStats.done}</StatValue>
+              <StatLabel>Completed</StatLabel>
+            </StatCard>
+            
+            <StatCard>
+              <StatIcon $color="#dbeafe">
+                <FiClock color="#2563eb" />
+              </StatIcon>
+              <StatValue>{taskStats.inProgress}</StatValue>
+              <StatLabel>In Progress</StatLabel>
+            </StatCard>
+            
+            <StatCard>
+              <StatIcon $color="#fee2e2">
+                <FiAlertCircle color="#dc2626" />
+              </StatIcon>
+              <StatValue>{taskStats.blocked}</StatValue>
+              <StatLabel>Blocked</StatLabel>
+            </StatCard>
+          </StatsGrid>
+          
+          <Card 
+            style={{ marginTop: '1.5rem' }}
+            title="Task Completion"
+            subtitle={`${weeklyTasksProgress}% of tasks completed`}
+          >
+            <ProgressBar $progress={weeklyTasksProgress} />
+          </Card>
+        </FullWidthSection>
+        
+        <MainContent>
+          <Section>
+            <SectionHeader>
+              <SectionTitle>
+                <FiAlertCircle color="#f59e0b" /> Priority Tasks
+              </SectionTitle>
+              
+              <SeeAllLink to="/tasks">
+                See all <FiChevronRight size={14} />
+              </SeeAllLink>
+            </SectionHeader>
+            
+            {priorityTasks.length > 0 ? (
+              <TaskList>
+                {priorityTasks.map(task => (
+                  <TaskItem key={task.id}>
+                    <TaskStatus $status={task.status} />
+                    <TaskContent>
+                      <TaskTitle>{task.title}</TaskTitle>
+                      <TaskMeta>
+                        <Badge 
+                          label={task.priority === 'p0' ? 'Critical' : 'High'} 
+                          variant={task.priority === 'p0' ? 'error' : 'warning'} 
+                          size="small"
+                        />
+                        {task.due_date && (
+                          <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                        )}
+                      </TaskMeta>
+                    </TaskContent>
+                  </TaskItem>
+                ))}
+              </TaskList>
+            ) : (
+              <Card>
+                <EmptyState>
+                  <FiCheckCircle />
+                  <p>No priority tasks at the moment. Great job!</p>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    startIcon={<FiPlus />}
+                  >
+                    Add Task
+                  </Button>
+                </EmptyState>
+              </Card>
+            )}
+          </Section>
+          
+          <Section>
+            <SectionHeader>
+              <SectionTitle>
+                <FiActivity color="#3b82f6" /> Recent Activity
+              </SectionTitle>
+            </SectionHeader>
+            
+            {recentActivity.length > 0 ? (
+              <ActivityList>
+                {recentActivity.map((item, index) => {
+                  const activityColors = {
+                    task: item.status === 'done' ? '#16a34a' : item.status === 'blocked' ? '#dc2626' : '#3b82f6',
+                    document: '#8b5cf6',
+                    campaign: '#0891b2'
+                  };
+                  
+                  return (
+                    <ActivityItem key={`${item.type}-${item.id}`}>
+                      <ActivityIcon $color={activityColors[item.type]}>
+                        {getActivityIcon(item)}
+                      </ActivityIcon>
+                      <ActivityContent>
+                        <ActivityTitle>
+                          {item.type === 'task' && `Task ${item.status}: ${item.title}`}
+                          {item.type === 'document' && `Document updated: ${item.title}`}
+                          {item.type === 'campaign' && `Campaign ${item.status}: ${item.title || item.name}`}
+                        </ActivityTitle>
+                        <ActivityTime>{formatRelativeTime(item.updated_at)}</ActivityTime>
+                      </ActivityContent>
+                    </ActivityItem>
+                  );
+                })}
+              </ActivityList>
+            ) : (
+              <Card>
+                <EmptyState>
+                  <FiActivity />
+                  <p>No recent activity to display</p>
+                </EmptyState>
+              </Card>
+            )}
+          </Section>
+        </MainContent>
+        
+        <Sidebar>
+          <Card 
+            title="Team Activity"
+            variant="elevated"
+          >
+            {user && (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                padding: '1rem 0'
+              }}>
+                <Avatar name={user.email || ''} size="lg" />
+                <div style={{ 
+                  textAlign: 'center', 
+                  marginTop: '0.75rem',
+                  marginBottom: '1rem'
+                }}>
+                  <h4 style={{ margin: '0 0 0.25rem' }}>{user.email?.split('@')[0] || 'User'}</h4>
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#64748b'
+                  }}>
+                    Active Now
+                  </div>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '1rem',
+                  width: '100%',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '1rem'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold' }}>{taskStats.done}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Completed</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold' }}>{taskStats.inProgress}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>In Progress</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+          
+          <Card 
+            title="Upcoming Campaigns"
+            variant="outlined"
+            headerAction={
+              <SeeAllLink to="/marketing">
+                All <FiChevronRight size={14} />
+              </SeeAllLink>
+            }
+          >
+            {campaigns.length > 0 ? (
+              <ActivityList>
+                {campaigns.slice(0, 3).map(campaign => (
+                  <ActivityItem key={campaign.id} style={{ padding: '0.75rem' }}>
+                    <ActivityIcon $color="#0891b2">
+                      <FiCalendar />
+                    </ActivityIcon>
+                    <ActivityContent>
+                      <ActivityTitle>{campaign.title || campaign.name}</ActivityTitle>
+                      <ActivityTime>
+                        {new Date(campaign.start_date).toLocaleDateString()}
+                      </ActivityTime>
+                    </ActivityContent>
+                  </ActivityItem>
+                ))}
+              </ActivityList>
+            ) : (
+              <EmptyState>
+                <FiCalendar />
+                <p>No upcoming campaigns</p>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  startIcon={<FiPlus />}
+                >
+                  Add Campaign
+                </Button>
+              </EmptyState>
+            )}
+          </Card>
+          
+          <Card 
+            title="Recent Documents"
+            variant="outlined"
+            headerAction={
+              <SeeAllLink to="/docs">
+                All <FiChevronRight size={14} />
+              </SeeAllLink>
+            }
+          >
+            {documents.length > 0 ? (
+              <ActivityList>
+                {documents.map(doc => (
+                  <ActivityItem key={doc.id} style={{ padding: '0.75rem' }}>
+                    <ActivityIcon $color="#8b5cf6">
+                      <FiFileText />
+                    </ActivityIcon>
+                    <ActivityContent>
+                      <ActivityTitle>{doc.title}</ActivityTitle>
+                      <ActivityTime>{formatRelativeTime(doc.updated_at)}</ActivityTime>
+                    </ActivityContent>
+                  </ActivityItem>
+                ))}
+              </ActivityList>
+            ) : (
+              <EmptyState>
+                <FiFileText />
+                <p>No documents yet</p>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  startIcon={<FiPlus />}
+                >
+                  Add Document
+                </Button>
+              </EmptyState>
+            )}
+          </Card>
+        </Sidebar>
+      </DashboardContainer>
+    </>
   );
 };
 

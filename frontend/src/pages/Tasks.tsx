@@ -1,10 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiPlus, FiEdit2, FiTrash2, FiFileText, FiLink, FiMessageCircle } from 'react-icons/fi';
+import { 
+  FiPlus, 
+  FiEdit2, 
+  FiTrash2, 
+  FiFileText, 
+  FiLink, 
+  FiMessageCircle, 
+  FiFilter,
+  FiChevronDown,
+  FiCalendar,
+  FiClock,
+  FiAlertOctagon,
+  FiCheckCircle
+} from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import DocumentUpload from '../components/DocumentUpload';
 import TaskDependencies from '../components/TaskDependencies';
 import TaskComments from '../components/TaskComments';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import Card from '../components/ui/Card';
 
 // Type definitions
 interface Task {
@@ -44,34 +61,82 @@ interface Campaign {
 const TasksContainer = styled.div`
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 150px);
+  height: calc(100vh - 180px);
+`;
+
+const TasksHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.md};
+  }
+`;
+
+const FilterSection = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
 const FiltersContainer = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  flex-wrap: wrap;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  
+  h4 {
+    font-size: ${({ theme }) => theme.typography.body2.fontSize};
+    font-weight: 600;
+    margin: 0 0 ${({ theme }) => theme.spacing.xs} 0;
+    color: ${({ theme }) => theme.colors.text.secondary};
+  }
+`;
+
+const FiltersRow = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.xs};
   flex-wrap: wrap;
 `;
 
-const FilterButton = styled.button<{ active?: boolean }>`
-  padding: 0.5rem 1rem;
-  background: ${({ active }) => (active ? '#5c6bc0' : 'white')};
-  color: ${({ active }) => (active ? 'white' : '#333')};
-  border: 1px solid ${({ active }) => (active ? '#5c6bc0' : '#ddd')};
-  border-radius: 4px;
+const FilterButton = styled.button<{ $active?: boolean }>`
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  background: ${({ $active, theme }) => 
+    $active ? theme.colors.primary.main : theme.colors.ui.card};
+  color: ${({ $active, theme }) => 
+    $active ? theme.colors.primary.contrastText : theme.colors.text.primary};
+  border: 1px solid ${({ $active, theme }) => 
+    $active ? theme.colors.primary.main : theme.colors.ui.divider};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  transition: all ${({ theme }) => theme.transitions.fast};
   
   &:hover {
-    background: ${({ active }) => (active ? '#4a5ab9' : '#f5f5f5')};
+    background: ${({ $active, theme }) => 
+      $active ? theme.colors.primary.dark : theme.colors.ui.hover};
+    border-color: ${({ $active, theme }) => 
+      $active ? theme.colors.primary.dark : theme.colors.primary.light};
   }
 `;
 
 const KanbanBoard = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: ${({ theme }) => theme.spacing.lg};
   flex: 1;
   overflow-x: auto;
   
@@ -80,120 +145,213 @@ const KanbanBoard = styled.div`
   }
 `;
 
-const Column = styled.div`
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 1rem;
+const Column = styled.div<{ $status: string }>`
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  box-shadow: ${({ theme }) => theme.shadows.sm};
+  padding: ${({ theme }) => theme.spacing.md};
   display: flex;
   flex-direction: column;
   min-height: 300px;
   max-height: 100%;
+  border-top: 4px solid ${({ $status, theme }) => 
+    $status === 'todo' ? theme.colors.text.hint : 
+    $status === 'in_progress' ? theme.colors.status.info : 
+    $status === 'blocked' ? theme.colors.status.error : 
+    theme.colors.status.success};
 `;
 
 const ColumnHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  padding-bottom: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.ui.divider};
 `;
 
 const ColumnTitle = styled.h3`
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: ${({ theme }) => theme.typography.h4.fontSize};
+  font-weight: ${({ theme }) => theme.typography.h4.fontWeight};
   margin: 0;
   display: flex;
   align-items: center;
 `;
 
+const ColumnIcon = styled.div<{ $status: string }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  margin-right: ${({ theme }) => theme.spacing.sm};
+  background: ${({ $status, theme }) => 
+    $status === 'todo' ? theme.colors.text.hint + '20' : 
+    $status === 'in_progress' ? theme.colors.status.info + '20' : 
+    $status === 'blocked' ? theme.colors.status.error + '20' : 
+    theme.colors.status.success + '20'};
+  color: ${({ $status, theme }) => 
+    $status === 'todo' ? theme.colors.text.hint : 
+    $status === 'in_progress' ? theme.colors.status.info : 
+    $status === 'blocked' ? theme.colors.status.error : 
+    theme.colors.status.success};
+`;
+
 const ColumnCount = styled.span`
-  background: #e0e0e0;
-  color: #555;
+  background: ${({ theme }) => theme.colors.ui.hover};
+  color: ${({ theme }) => theme.colors.text.secondary};
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
-  border-radius: 10px;
-  margin-left: 0.5rem;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  margin-left: ${({ theme }) => theme.spacing.sm};
+`;
+
+const AddTaskButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  cursor: pointer;
+  padding: ${({ theme }) => theme.spacing.xs};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  transition: all ${({ theme }) => theme.transitions.fast};
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.ui.hover};
+    color: ${({ theme }) => theme.colors.primary.main};
+  }
 `;
 
 const TaskList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: ${({ theme }) => theme.spacing.md};
   overflow-y: auto;
   flex: 1;
+  padding-right: ${({ theme }) => theme.spacing.xs};
 `;
 
-const TaskCard = styled.div<{ priority: string }>`
-  background: white;
-  border-radius: 6px;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-left: 3px solid ${({ priority }) => 
-    priority === 'p0' ? '#e74c3c' : 
-    priority === 'p1' ? '#f39c12' : 
-    priority === 'p2' ? '#3498db' : 
-    '#7f8c8d'
-  };
-  cursor: pointer;
+const TaskCard = styled.div<{ $priority: string }>`
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: ${({ theme }) => theme.spacing.md};
+  box-shadow: ${({ theme }) => theme.shadows.sm};
+  transition: all ${({ theme }) => theme.transitions.fast};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+  position: relative;
   
   &:hover {
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    box-shadow: ${({ theme }) => theme.shadows.md};
+    transform: translateY(-2px);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: ${({ $priority, theme }) => 
+      $priority === 'p0' ? theme.colors.priority.p0 : 
+      $priority === 'p1' ? theme.colors.priority.p1 : 
+      $priority === 'p2' ? theme.colors.priority.p2 : 
+      theme.colors.priority.p3
+    };
+    border-top-left-radius: ${({ theme }) => theme.borderRadius.md};
+    border-bottom-left-radius: ${({ theme }) => theme.borderRadius.md};
   }
 `;
 
 const TaskTitle = styled.h4`
-  font-size: 0.9rem;
-  margin: 0 0 0.5rem 0;
+  font-size: ${({ theme }) => theme.typography.body1.fontSize};
+  margin: 0 0 ${({ theme }) => theme.spacing.sm} 0;
   font-weight: 500;
+  color: ${({ theme }) => theme.colors.text.primary};
 `;
 
 const TaskMeta = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.75rem;
-  color: #777;
+  font-size: ${({ theme }) => theme.typography.caption.fontSize};
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
 const TaskTags = styled.div`
   display: flex;
-  gap: 0.3rem;
+  gap: ${({ theme }) => theme.spacing.xs};
   flex-wrap: wrap;
 `;
 
-const TaskTag = styled.span`
-  background: #eef2ff;
-  color: #5c6bc0;
-  padding: 0.15rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.7rem;
-`;
-
-const CampaignTag = styled(TaskTag)`
-  background: #e3f2fd;
-  color: #1976d2;
+const TaskDueDate = styled.span`
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 4px;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  font-size: ${({ theme }) => theme.typography.caption.fontSize};
 `;
-
-const TaskDueDate = styled.span``;
 
 const TaskActions = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  padding-top: ${({ theme }) => theme.spacing.sm};
+  border-top: 1px solid ${({ theme }) => theme.colors.ui.divider};
 `;
 
 const ActionButton = styled.button`
-  background: none;
-  border: none;
+  background: ${({ theme }) => theme.colors.ui.card};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
   cursor: pointer;
-  color: #777;
-  padding: 0.25rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  padding: ${({ theme }) => theme.spacing.xs};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all ${({ theme }) => theme.transitions.fast};
   
   &:hover {
-    color: #5c6bc0;
+    background: ${({ theme }) => theme.colors.ui.hover};
+    color: ${({ theme }) => theme.colors.primary.main};
+    border-color: ${({ theme }) => theme.colors.primary.light};
   }
+`;
+
+const DeleteButton = styled(ActionButton)`
+  &:hover {
+    background: ${({ theme }) => theme.colors.status.error + '10'};
+    color: ${({ theme }) => theme.colors.status.error};
+    border-color: ${({ theme }) => theme.colors.status.error};
+  }
+`;
+
+const PriorityBadge = styled.span<{ $priority: string }>`
+  display: inline-flex;
+  align-items: center;
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  background: ${({ $priority, theme }) => 
+    $priority === 'p0' ? theme.colors.priority.p0 + '20' : 
+    $priority === 'p1' ? theme.colors.priority.p1 + '20' : 
+    $priority === 'p2' ? theme.colors.priority.p2 + '20' : 
+    theme.colors.priority.p3 + '20'
+  };
+  color: ${({ $priority, theme }) => 
+    $priority === 'p0' ? theme.colors.priority.p0 : 
+    $priority === 'p1' ? theme.colors.priority.p1 : 
+    $priority === 'p2' ? theme.colors.priority.p2 : 
+    theme.colors.priority.p3
+  };
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  font-size: 0.75rem;
+  font-weight: 500;
 `;
 
 const Modal = styled.div`
@@ -210,25 +368,28 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
+  background: ${({ theme }) => theme.colors.ui.card};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  padding: ${({ theme }) => theme.spacing.xl};
   width: 90%;
-  max-width: 500px;
+  max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: ${({ theme }) => theme.shadows.xl};
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
 const ModalTitle = styled.h2`
   margin: 0;
-  font-size: 1.25rem;
+  font-size: ${({ theme }) => theme.typography.h3.fontSize};
+  font-weight: ${({ theme }) => theme.typography.h3.fontWeight};
+  color: ${({ theme }) => theme.colors.text.primary};
 `;
 
 const CloseButton = styled.button`
@@ -236,85 +397,98 @@ const CloseButton = styled.button`
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #777;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
   
   &:hover {
-    color: #333;
+    background: ${({ theme }) => theme.colors.ui.hover};
+    color: ${({ theme }) => theme.colors.text.primary};
   }
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${({ theme }) => theme.spacing.md};
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
 const Label = styled.label`
   font-weight: 500;
-  font-size: 0.9rem;
-`;
-
-const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  
-  &:focus {
-    outline: none;
-    border-color: #5c6bc0;
-  }
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  color: ${({ theme }) => theme.colors.text.secondary};
 `;
 
 const Textarea = styled.textarea`
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
   min-height: 100px;
   resize: vertical;
+  font-family: ${({ theme }) => theme.typography.fontFamily};
+  transition: all ${({ theme }) => theme.transitions.fast};
   
   &:focus {
     outline: none;
-    border-color: #5c6bc0;
+    border-color: ${({ theme }) => theme.colors.primary.main};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.primary.main}20;
   }
 `;
 
 const Select = styled.select`
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: ${({ theme }) => theme.typography.body2.fontSize};
+  background-color: ${({ theme }) => theme.colors.ui.card};
+  transition: all ${({ theme }) => theme.transitions.fast};
   
   &:focus {
     outline: none;
-    border-color: #5c6bc0;
+    border-color: ${({ theme }) => theme.colors.primary.main};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.primary.main}20;
   }
 `;
 
-const Button = styled.button`
-  padding: 0.75rem 1rem;
-  background: #5c6bc0;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing.xl};
+  text-align: center;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  height: 100%;
   
-  &:hover {
-    background: #4a5ab9;
+  svg {
+    font-size: 2.5rem;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    opacity: 0.5;
   }
   
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
+  p {
+    margin-bottom: ${({ theme }) => theme.spacing.md};
   }
 `;
 
@@ -323,6 +497,7 @@ const LoadingContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 200px;
+  width: 100%;
 `;
 
 // Component
@@ -678,9 +853,44 @@ const Tasks: React.FC = () => {
     return null;
   };
   
+  // Get column icon based on status
+  const getColumnIcon = (status: string) => {
+    switch (status) {
+      case 'todo':
+        return <FiClock size={16} />;
+      case 'in_progress':
+        return <FiCalendar size={16} />;
+      case 'blocked':
+        return <FiAlertOctagon size={16} />;
+      case 'done':
+        return <FiCheckCircle size={16} />;
+      default:
+        return <FiClock size={16} />;
+    }
+  };
+  
+  // Get priority display text
+  const getPriorityText = (priority: string) => {
+    switch (priority) {
+      case 'p0':
+        return 'Critical';
+      case 'p1':
+        return 'High';
+      case 'p2':
+        return 'Medium';
+      case 'p3':
+        return 'Low';
+      default:
+        return 'Medium';
+    }
+  };
+
   // Render task actions (used in all columns)
   const renderTaskActions = (task: Task) => (
     <TaskActions>
+      <ActionButton onClick={() => openEditModal(task)} title="Edit Task">
+        <FiEdit2 size={16} />
+      </ActionButton>
       <ActionButton onClick={() => openDocumentsModal(task)} title="Manage Documents">
         <FiFileText size={16} />
       </ActionButton>
@@ -690,227 +900,378 @@ const Tasks: React.FC = () => {
       <ActionButton onClick={() => openCommentsModal(task)} title="Comments">
         <FiMessageCircle size={16} />
       </ActionButton>
-      <ActionButton onClick={() => openEditModal(task)} title="Edit Task">
-        <FiEdit2 size={16} />
-      </ActionButton>
-      <ActionButton onClick={() => deleteTask(task.id)} title="Delete Task">
+      <DeleteButton onClick={() => deleteTask(task.id)} title="Delete Task">
         <FiTrash2 size={16} />
-      </ActionButton>
+      </DeleteButton>
     </TaskActions>
   );
   
   return (
     <TasksContainer>
-      <FiltersContainer>
-        <div>
-          <h4 style={{ margin: '0 0 0.5rem 0' }}>Priority</h4>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <FilterButton 
-              active={selectedFilter === null ? true : undefined} 
-              onClick={() => setSelectedFilter(null)}
-            >
-              All
-            </FilterButton>
-            <FilterButton 
-              active={selectedFilter === 'p0' ? true : undefined} 
-              onClick={() => setSelectedFilter('p0')}
-            >
-              P0 - Critical
-            </FilterButton>
-            <FilterButton 
-              active={selectedFilter === 'p1' ? true : undefined} 
-              onClick={() => setSelectedFilter('p1')}
-            >
-              P1 - High
-            </FilterButton>
-            <FilterButton 
-              active={selectedFilter === 'p2' ? true : undefined} 
-              onClick={() => setSelectedFilter('p2')}
-            >
-              P2 - Medium
-            </FilterButton>
-            <FilterButton 
-              active={selectedFilter === 'p3' ? true : undefined} 
-              onClick={() => setSelectedFilter('p3')}
-            >
-              P3 - Low
-            </FilterButton>
-          </div>
-        </div>
-        
-        {campaigns.length > 0 && (
-          <div>
-            <h4 style={{ margin: '0 0 0.5rem 0' }}>Campaign</h4>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <FilterButton 
-                active={selectedCampaign === null ? true : undefined} 
-                onClick={() => setSelectedCampaign(null)}
-              >
-                All Campaigns
-              </FilterButton>
-              {campaigns.map(campaign => (
+      <TasksHeader>
+        <h2>Task Management</h2>
+        <Button 
+          variant="primary"
+          startIcon={<FiPlus size={16} />}
+          onClick={() => openAddModal('todo')}
+        >
+          Add New Task
+        </Button>
+      </TasksHeader>
+      
+      <FilterSection>
+        <Card style={{ marginBottom: '1.5rem' }}>
+          <FiltersContainer>
+            <FilterGroup>
+              <h4>Filter by Priority</h4>
+              <FiltersRow>
                 <FilterButton 
-                  key={campaign.id}
-                  active={selectedCampaign === campaign.id ? true : undefined} 
-                  onClick={() => setSelectedCampaign(campaign.id)}
+                  $active={selectedFilter === null ? true : undefined} 
+                  onClick={() => setSelectedFilter(null)}
                 >
-                  {campaign.title}
+                  All
                 </FilterButton>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <Button onClick={() => openAddModal('todo')} style={{ marginLeft: 'auto' }}>Add New Task</Button>
-      </FiltersContainer>
+                <FilterButton 
+                  $active={selectedFilter === 'p0' ? true : undefined} 
+                  onClick={() => setSelectedFilter('p0')}
+                >
+                  Critical
+                </FilterButton>
+                <FilterButton 
+                  $active={selectedFilter === 'p1' ? true : undefined} 
+                  onClick={() => setSelectedFilter('p1')}
+                >
+                  High
+                </FilterButton>
+                <FilterButton 
+                  $active={selectedFilter === 'p2' ? true : undefined} 
+                  onClick={() => setSelectedFilter('p2')}
+                >
+                  Medium
+                </FilterButton>
+                <FilterButton 
+                  $active={selectedFilter === 'p3' ? true : undefined} 
+                  onClick={() => setSelectedFilter('p3')}
+                >
+                  Low
+                </FilterButton>
+              </FiltersRow>
+            </FilterGroup>
+            
+            {campaigns.length > 0 && (
+              <FilterGroup>
+                <h4>Filter by Campaign</h4>
+                <FiltersRow>
+                  <FilterButton 
+                    $active={selectedCampaign === null ? true : undefined} 
+                    onClick={() => setSelectedCampaign(null)}
+                  >
+                    All Campaigns
+                  </FilterButton>
+                  {campaigns.slice(0, 3).map(campaign => (
+                    <FilterButton 
+                      key={campaign.id}
+                      $active={selectedCampaign === campaign.id ? true : undefined} 
+                      onClick={() => setSelectedCampaign(campaign.id)}
+                    >
+                      {campaign.title}
+                    </FilterButton>
+                  ))}
+                  {campaigns.length > 3 && (
+                    <FilterButton
+                      onClick={() => {}}
+                    >
+                      More...
+                    </FilterButton>
+                  )}
+                </FiltersRow>
+              </FilterGroup>
+            )}
+          </FiltersContainer>
+        </Card>
+      </FilterSection>
       
       {isLoading ? (
         <LoadingContainer>
-          <p>Loading tasks...</p>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: '2px solid #e2e8f0',
+            borderTopColor: '#3d5afe',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <style>
+            {`
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}
+          </style>
         </LoadingContainer>
       ) : (
         <KanbanBoard>
           {/* To Do Column */}
-          <Column>
+          <Column $status="todo">
             <ColumnHeader>
               <ColumnTitle>
+                <ColumnIcon $status="todo">
+                  {getColumnIcon('todo')}
+                </ColumnIcon>
                 To Do
                 <ColumnCount>{getTasksByStatus('todo').length}</ColumnCount>
               </ColumnTitle>
+              <AddTaskButton onClick={() => openAddModal('todo')} title="Add Task">
+                <FiPlus size={20} />
+              </AddTaskButton>
             </ColumnHeader>
+            
             <TaskList>
-              {getTasksByStatus('todo')
-                .map(task => (
-                  <TaskCard key={task.id} priority={task.priority}>
+              {getTasksByStatus('todo').length === 0 ? (
+                <EmptyState>
+                  <FiClock size={24} />
+                  <p>No tasks yet</p>
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    startIcon={<FiPlus />} 
+                    onClick={() => openAddModal('todo')}
+                  >
+                    Add Task
+                  </Button>
+                </EmptyState>
+              ) : (
+                getTasksByStatus('todo').map(task => (
+                  <TaskCard key={task.id} $priority={task.priority}>
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
-                      <TaskTags>
-                        {task.campaign_id && (
-                          <CampaignTag>
-                            <span role="img" aria-label="campaign">📅</span> {getCampaignName(task.campaign_id)}
-                          </CampaignTag>
-                        )}
-                        {task.tags?.map(tag => (
-                          <TaskTag key={tag}>{tag}</TaskTag>
-                        ))}
-                      </TaskTags>
+                      <PriorityBadge $priority={task.priority}>
+                        {getPriorityText(task.priority)}
+                      </PriorityBadge>
+                      
                       {task.due_date && (
                         <TaskDueDate>
+                          <FiCalendar size={12} />
                           {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
+                    <TaskTags>
+                      {task.campaign_id && (
+                        <Badge 
+                          label={getCampaignName(task.campaign_id)} 
+                          variant="info" 
+                          size="small" 
+                          icon={<FiCalendar size={10} />}
+                        />
+                      )}
+                      {task.tags?.map(tag => (
+                        <Badge 
+                          key={tag} 
+                          label={tag} 
+                          variant="default" 
+                          size="small"
+                        />
+                      ))}
+                    </TaskTags>
                     {renderTaskActions(task)}
                   </TaskCard>
-                ))}
+                ))
+              )}
             </TaskList>
           </Column>
           
           {/* In Progress Column */}
-          <Column>
+          <Column $status="in_progress">
             <ColumnHeader>
               <ColumnTitle>
+                <ColumnIcon $status="in_progress">
+                  {getColumnIcon('in_progress')}
+                </ColumnIcon>
                 In Progress
                 <ColumnCount>{getTasksByStatus('in_progress').length}</ColumnCount>
               </ColumnTitle>
+              <AddTaskButton onClick={() => openAddModal('in_progress')} title="Add Task">
+                <FiPlus size={20} />
+              </AddTaskButton>
             </ColumnHeader>
+            
             <TaskList>
-              {getTasksByStatus('in_progress')
-                .map(task => (
-                  <TaskCard key={task.id} priority={task.priority}>
+              {getTasksByStatus('in_progress').length === 0 ? (
+                <EmptyState>
+                  <FiCalendar size={24} />
+                  <p>No tasks in progress</p>
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    startIcon={<FiPlus />} 
+                    onClick={() => openAddModal('in_progress')}
+                  >
+                    Add Task
+                  </Button>
+                </EmptyState>
+              ) : (
+                getTasksByStatus('in_progress').map(task => (
+                  <TaskCard key={task.id} $priority={task.priority}>
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
-                      <TaskTags>
-                        {task.campaign_id && (
-                          <CampaignTag>
-                            <span role="img" aria-label="campaign">📅</span> {getCampaignName(task.campaign_id)}
-                          </CampaignTag>
-                        )}
-                        {task.tags?.map(tag => (
-                          <TaskTag key={tag}>{tag}</TaskTag>
-                        ))}
-                      </TaskTags>
+                      <PriorityBadge $priority={task.priority}>
+                        {getPriorityText(task.priority)}
+                      </PriorityBadge>
+                      
                       {task.due_date && (
                         <TaskDueDate>
+                          <FiCalendar size={12} />
                           {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
+                    <TaskTags>
+                      {task.campaign_id && (
+                        <Badge 
+                          label={getCampaignName(task.campaign_id)} 
+                          variant="info" 
+                          size="small" 
+                          icon={<FiCalendar size={10} />}
+                        />
+                      )}
+                      {task.tags?.map(tag => (
+                        <Badge 
+                          key={tag} 
+                          label={tag} 
+                          variant="default" 
+                          size="small"
+                        />
+                      ))}
+                    </TaskTags>
                     {renderTaskActions(task)}
                   </TaskCard>
-                ))}
+                ))
+              )}
             </TaskList>
           </Column>
           
           {/* Blocked Column */}
-          <Column>
+          <Column $status="blocked">
             <ColumnHeader>
               <ColumnTitle>
+                <ColumnIcon $status="blocked">
+                  {getColumnIcon('blocked')}
+                </ColumnIcon>
                 Blocked
                 <ColumnCount>{getTasksByStatus('blocked').length}</ColumnCount>
               </ColumnTitle>
+              <AddTaskButton onClick={() => openAddModal('blocked')} title="Add Task">
+                <FiPlus size={20} />
+              </AddTaskButton>
             </ColumnHeader>
+            
             <TaskList>
-              {getTasksByStatus('blocked')
-                .map(task => (
-                  <TaskCard key={task.id} priority={task.priority}>
+              {getTasksByStatus('blocked').length === 0 ? (
+                <EmptyState>
+                  <FiAlertOctagon size={24} />
+                  <p>No blocked tasks</p>
+                </EmptyState>
+              ) : (
+                getTasksByStatus('blocked').map(task => (
+                  <TaskCard key={task.id} $priority={task.priority}>
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
-                      <TaskTags>
-                        {task.campaign_id && (
-                          <CampaignTag>
-                            <span role="img" aria-label="campaign">📅</span> {getCampaignName(task.campaign_id)}
-                          </CampaignTag>
-                        )}
-                        {task.tags?.map(tag => (
-                          <TaskTag key={tag}>{tag}</TaskTag>
-                        ))}
-                      </TaskTags>
+                      <PriorityBadge $priority={task.priority}>
+                        {getPriorityText(task.priority)}
+                      </PriorityBadge>
+                      
                       {task.due_date && (
                         <TaskDueDate>
+                          <FiCalendar size={12} />
                           {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
+                    <TaskTags>
+                      {task.campaign_id && (
+                        <Badge 
+                          label={getCampaignName(task.campaign_id)} 
+                          variant="info" 
+                          size="small" 
+                          icon={<FiCalendar size={10} />}
+                        />
+                      )}
+                      {task.tags?.map(tag => (
+                        <Badge 
+                          key={tag} 
+                          label={tag} 
+                          variant="default" 
+                          size="small"
+                        />
+                      ))}
+                    </TaskTags>
                     {renderTaskActions(task)}
                   </TaskCard>
-                ))}
+                ))
+              )}
             </TaskList>
           </Column>
           
           {/* Done Column */}
-          <Column>
+          <Column $status="done">
             <ColumnHeader>
               <ColumnTitle>
+                <ColumnIcon $status="done">
+                  {getColumnIcon('done')}
+                </ColumnIcon>
                 Done
                 <ColumnCount>{getTasksByStatus('done').length}</ColumnCount>
               </ColumnTitle>
+              <AddTaskButton onClick={() => openAddModal('done')} title="Add Task">
+                <FiPlus size={20} />
+              </AddTaskButton>
             </ColumnHeader>
+            
             <TaskList>
-              {getTasksByStatus('done')
-                .map(task => (
-                  <TaskCard key={task.id} priority={task.priority}>
+              {getTasksByStatus('done').length === 0 ? (
+                <EmptyState>
+                  <FiCheckCircle size={24} />
+                  <p>No completed tasks</p>
+                </EmptyState>
+              ) : (
+                getTasksByStatus('done').map(task => (
+                  <TaskCard key={task.id} $priority={task.priority}>
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
-                      <TaskTags>
-                        {task.campaign_id && (
-                          <CampaignTag>
-                            <span role="img" aria-label="campaign">📅</span> {getCampaignName(task.campaign_id)}
-                          </CampaignTag>
-                        )}
-                        {task.tags?.map(tag => (
-                          <TaskTag key={tag}>{tag}</TaskTag>
-                        ))}
-                      </TaskTags>
+                      <PriorityBadge $priority={task.priority}>
+                        {getPriorityText(task.priority)}
+                      </PriorityBadge>
+                      
                       {task.due_date && (
                         <TaskDueDate>
+                          <FiCalendar size={12} />
                           {formatDueDate(task)}
                         </TaskDueDate>
                       )}
                     </TaskMeta>
+                    <TaskTags>
+                      {task.campaign_id && (
+                        <Badge 
+                          label={getCampaignName(task.campaign_id)} 
+                          variant="info" 
+                          size="small" 
+                          icon={<FiCalendar size={10} />}
+                        />
+                      )}
+                      {task.tags?.map(tag => (
+                        <Badge 
+                          key={tag} 
+                          label={tag} 
+                          variant="default" 
+                          size="small"
+                        />
+                      ))}
+                    </TaskTags>
                     {renderTaskActions(task)}
                   </TaskCard>
-                ))}
+                ))
+              )}
             </TaskList>
           </Column>
         </KanbanBoard>
@@ -928,14 +1289,15 @@ const Tasks: React.FC = () => {
             </ModalHeader>
             <Form onSubmit={handleSubmit}>
               <FormGroup>
-                <Label htmlFor="title">Title</Label>
                 <Input
+                  label="Title"
                   type="text"
                   id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
                   required
+                  fullWidth
                 />
               </FormGroup>
               
@@ -946,61 +1308,66 @@ const Tasks: React.FC = () => {
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
+                  placeholder="Enter task details..."
                 />
               </FormGroup>
               
-              <FormGroup>
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                >
-                  <option value="todo">To Do</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="blocked">Blocked</option>
-                  <option value="done">Done</option>
-                </Select>
-              </FormGroup>
+              <FormGrid>
+                <FormGroup>
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                  >
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="done">Done</option>
+                  </Select>
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    id="priority"
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                  >
+                    <option value="p0">P0 - Critical</option>
+                    <option value="p1">P1 - High</option>
+                    <option value="p2">P2 - Medium</option>
+                    <option value="p3">P3 - Low</option>
+                  </Select>
+                </FormGroup>
+              </FormGrid>
               
-              <FormGroup>
-                <Label htmlFor="priority">Priority</Label>
-                <Select
-                  id="priority"
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
-                >
-                  <option value="p0">P0 - Critical</option>
-                  <option value="p1">P1 - High</option>
-                  <option value="p2">P2 - Medium</option>
-                  <option value="p3">P3 - Low</option>
-                </Select>
-              </FormGroup>
-              
-              <FormGroup>
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  type="date"
-                  id="dueDate"
-                  name="dueDate"
-                  value={formData.dueDate}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              
-              <FormGroup>
-                <Label htmlFor="tags">Tags (comma separated)</Label>
-                <Input
-                  type="text"
-                  id="tags"
-                  name="tags"
-                  value={formData.tags}
-                  onChange={handleInputChange}
-                  placeholder="design, website, bug"
-                />
-              </FormGroup>
+              <FormGrid>
+                <FormGroup>
+                  <Input
+                    label="Due Date"
+                    type="date"
+                    id="dueDate"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={handleInputChange}
+                  />
+                </FormGroup>
+                
+                <FormGroup>
+                  <Input
+                    label="Tags (comma separated)"
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    value={formData.tags}
+                    onChange={handleInputChange}
+                    placeholder="design, website, bug"
+                  />
+                </FormGroup>
+              </FormGrid>
               
               {campaigns.length > 0 && (
                 <FormGroup>
@@ -1021,7 +1388,11 @@ const Tasks: React.FC = () => {
                 </FormGroup>
               )}
               
-              <Button type="submit">
+              <Button 
+                type="submit"
+                variant="primary"
+                fullWidth
+              >
                 {editingTask ? 'Update Task' : 'Add Task'}
               </Button>
             </Form>
