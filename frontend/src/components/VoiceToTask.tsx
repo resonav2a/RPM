@@ -4,6 +4,7 @@ import { FiMic, FiMicOff, FiCheck, FiLoader, FiAlertCircle } from 'react-icons/f
 import { textToTask, transcribeSpeech } from '../services/openai';
 import { supabase } from '../services/supabase';
 import Button from './ui/Button';
+import ApiKeyInput from './ApiKeyInput';
 
 const VoiceToTaskContainer = styled.div`
   background: ${({ theme }) => theme.colors.ui.card};
@@ -433,40 +434,7 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
   
   // If we need to set up the API key first
   if (!apiKey) {
-    return (
-      <VoiceToTaskContainer>
-        <h3>Voice to Task Setup</h3>
-        <p>Please enter your OpenAI API key to enable voice transcription:</p>
-        
-        <ApiKeyInput>
-          <label htmlFor="openai-api-key">OpenAI API Key:</label>
-          <input
-            id="openai-api-key"
-            type="password"
-            value={apiKey}
-            onChange={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setApiKey(e.target.value);
-            }}
-            onBlur={(e) => {
-              if (e.target.value) {
-                localStorage.setItem('openai_api_key', e.target.value);
-              }
-            }}
-            placeholder="sk-..."
-            autoFocus
-          />
-          <p>Your API key is stored locally in your browser and never sent to our servers.</p>
-          
-          <ActionButtons>
-            <Button variant="primary" onClick={saveApiKey} disabled={!apiKey}>
-              Save API Key
-            </Button>
-          </ActionButtons>
-        </ApiKeyInput>
-      </VoiceToTaskContainer>
-    );
+    return <ApiKeyInput onKeySaved={() => window.location.reload()} />;
   }
   
   // If we need microphone permission

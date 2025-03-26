@@ -4,6 +4,7 @@ import { FiSend, FiPlus, FiEdit3, FiCheck, FiX, FiAlertCircle } from 'react-icon
 import { textToTask } from '../services/openai';
 import { supabase } from '../services/supabase';
 import Button from './ui/Button';
+import ApiKeyInput from './ApiKeyInput';
 
 const TextToTaskContainer = styled.div`
   background: ${({ theme }) => theme.colors.ui.card};
@@ -470,40 +471,7 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
 
   // If we need to set up the API key first
   if (!apiKey) {
-    return (
-      <TextToTaskContainer>
-        <h3>Text to Task Setup</h3>
-        <p>Please enter your OpenAI API key to enable AI-powered task parsing:</p>
-        
-        <ApiKeyInput>
-          <label htmlFor="openai-api-key-text">OpenAI API Key:</label>
-          <input
-            id="openai-api-key-text"
-            type="password"
-            value={apiKey}
-            onChange={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setApiKey(e.target.value);
-            }}
-            onBlur={(e) => {
-              if (e.target.value) {
-                localStorage.setItem('openai_api_key', e.target.value);
-              }
-            }}
-            placeholder="sk-..."
-            autoFocus
-          />
-          <p>Your API key is stored locally in your browser and never sent to our servers.</p>
-          
-          <ActionButtons>
-            <Button variant="primary" onClick={saveApiKey} disabled={!apiKey}>
-              Save API Key
-            </Button>
-          </ActionButtons>
-        </ApiKeyInput>
-      </TextToTaskContainer>
-    );
+    return <ApiKeyInput onKeySaved={() => window.location.reload()} />;
   }
   
   return (
