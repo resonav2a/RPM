@@ -12,12 +12,16 @@ import {
   FiCalendar,
   FiClock,
   FiAlertOctagon,
-  FiCheckCircle
+  FiCheckCircle,
+  FiBrain,
+  FiMic
 } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
 import DocumentUpload from '../components/DocumentUpload';
 import TaskDependencies from '../components/TaskDependencies';
 import TaskComments from '../components/TaskComments';
+import TextToTask from '../components/TextToTask';
+import VoiceToTask from '../components/VoiceToTask';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
@@ -525,6 +529,8 @@ const Tasks: React.FC = () => {
   const [showDependenciesModal, setShowDependenciesModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTextToTask, setShowTextToTask] = useState(false);
+  const [showVoiceToTask, setShowVoiceToTask] = useState(false);
   
   // Fetch tasks and campaigns on component mount
   useEffect(() => {
@@ -912,14 +918,44 @@ const Tasks: React.FC = () => {
     <TasksContainer>
       <TasksHeader>
         <h2>Task Management</h2>
-        <Button 
-          variant="primary"
-          startIcon={<FiPlus size={16} />}
-          onClick={() => openAddModal('todo')}
-        >
-          Add New Task
-        </Button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Button 
+            variant="secondary"
+            startIcon={<FiBrain size={16} />}
+            onClick={() => {
+              setShowTextToTask(prev => !prev);
+              if (showVoiceToTask) setShowVoiceToTask(false);
+            }}
+          >
+            Text to Task
+          </Button>
+          <Button 
+            variant="secondary"
+            startIcon={<FiMic size={16} />}
+            onClick={() => {
+              setShowVoiceToTask(prev => !prev);
+              if (showTextToTask) setShowTextToTask(false);
+            }}
+          >
+            Voice to Task
+          </Button>
+          <Button 
+            variant="primary"
+            startIcon={<FiPlus size={16} />}
+            onClick={() => openAddModal('todo')}
+          >
+            Add New Task
+          </Button>
+        </div>
       </TasksHeader>
+      
+      {showTextToTask && (
+        <TextToTask onTaskCreated={fetchTasks} />
+      )}
+      
+      {showVoiceToTask && (
+        <VoiceToTask onTaskCreated={fetchTasks} />
+      )}
       
       <FilterSection>
         <Card style={{ marginBottom: '1.5rem' }}>
