@@ -238,6 +238,34 @@ const SuccessMessage = styled.div`
   }
 `;
 
+const ErrorMessage = styled.div`
+  background: ${({ theme }) => theme.colors.status.error}20;
+  color: ${({ theme }) => theme.colors.status.error};
+  padding: ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  margin-top: ${({ theme }) => theme.spacing.md};
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  
+  svg {
+    flex-shrink: 0;
+  }
+`;
+
+const ApiKeyInput = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.md};
+  
+  input {
+    width: 100%;
+    padding: ${({ theme }) => theme.spacing.sm};
+    border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    font-size: ${({ theme }) => theme.typography.body2.fontSize};
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  }
+`;
+
 const getFormattedPriority = (priority: string) => {
   switch (priority) {
     case 'p0': return 'Critical';
@@ -261,6 +289,7 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
     priority: 'p0' | 'p1' | 'p2' | 'p3';
     tags: string[];
     campaign?: string;
+    due_date?: string;
   } | null>(null);
   
   const [editMode, setEditMode] = useState<{
@@ -280,6 +309,14 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
   });
   
   const [taskCreated, setTaskCreated] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  
+  // Check for API key on mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('openai_api_key') || '';
+    setApiKey(savedApiKey);
+  }, []);
   
   const examples = [
     "Remind me to follow up with Lisa about the market research next week",
@@ -396,6 +433,39 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
     });
   };
   
+  const saveApiKey = () => {
+    localStorage.setItem('openai_api_key', apiKey);
+    setError(null);
+  };
+
+  // If we need to set up the API key first
+  if (!apiKey) {
+    return (
+      <TextToTaskContainer>
+        <h3>Text to Task Setup</h3>
+        <p>Please enter your OpenAI API key to enable AI-powered task parsing:</p>
+        
+        <ApiKeyInput>
+          <label htmlFor="openai-api-key-text">OpenAI API Key:</label>
+          <input
+            id="openai-api-key-text"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="sk-..."
+          />
+          <p>Your API key is stored locally in your browser and never sent to our servers.</p>
+          
+          <ActionButtons>
+            <Button variant="primary" onClick={saveApiKey} disabled={!apiKey}>
+              Save API Key
+            </Button>
+          </ActionButtons>
+        </ApiKeyInput>
+      </TextToTaskContainer>
+    );
+  }
+  
   return (
     <TextToTaskContainer>
       <h3>Text to Task</h3>
@@ -418,6 +488,13 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
           </SendButton>
         </InputWrapper>
       </TextInputContainer>
+      
+      {error && (
+        <ErrorMessage>
+          <FiAlertCircle size={18} />
+          {error}
+        </ErrorMessage>
+      )}
       
       <ExamplesSection>
         <h4>Examples:</h4>

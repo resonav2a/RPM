@@ -13,7 +13,7 @@ import {
   FiClock,
   FiAlertOctagon,
   FiCheckCircle,
-  FiBrain,
+  FiCommand,
   FiMic
 } from 'react-icons/fi';
 import { supabase } from '../services/supabase';
@@ -921,7 +921,7 @@ const Tasks: React.FC = () => {
         <div style={{ display: 'flex', gap: '10px' }}>
           <Button 
             variant="secondary"
-            startIcon={<FiBrain size={16} />}
+            startIcon={<FiCommand size={16} />}
             onClick={() => {
               setShowTextToTask(prev => !prev);
               if (showVoiceToTask) setShowVoiceToTask(false);

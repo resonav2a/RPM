@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { FiMic, FiMicOff, FiCheck, FiLoader } from 'react-icons/fi';
-import { textToTask } from '../services/openai';
+import { FiMic, FiMicOff, FiCheck, FiLoader, FiAlertCircle } from 'react-icons/fi';
+import { textToTask, transcribeSpeech } from '../services/openai';
 import { supabase } from '../services/supabase';
 import Button from './ui/Button';
 
@@ -113,27 +113,42 @@ const SuccessMessage = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
+const ErrorMessage = styled.div`
+  background: ${({ theme }) => theme.colors.status.error}20;
+  color: ${({ theme }) => theme.colors.status.error};
+  padding: ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  margin-top: ${({ theme }) => theme.spacing.md};
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const ApiKeyInput = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.md};
+  
+  input {
+    width: 100%;
+    padding: ${({ theme }) => theme.spacing.sm};
+    border: 1px solid ${({ theme }) => theme.colors.ui.divider};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    font-size: ${({ theme }) => theme.typography.body2.fontSize};
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  }
+`;
+
+const PermissionRequest = styled.div`
+  background: ${({ theme }) => theme.colors.ui.backgroundAlt};
+  border: 1px dashed ${({ theme }) => theme.colors.ui.divider};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: ${({ theme }) => theme.spacing.md};
+  margin-top: ${({ theme }) => theme.spacing.md};
+  text-align: center;
+`;
+
 interface VoiceToTaskProps {
   onTaskCreated?: () => void;
 }
-
-// Mock voice recognition service
-const mockVoiceRecognition = () => {
-  return new Promise<string>((resolve) => {
-    const sampleTexts = [
-      "Remind me to follow up with David about the investor presentation for next Monday's meeting",
-      "Need to update the hiring plan for Q3 with the new budget allocation",
-      "Schedule a design review for the new landing page concepts by Friday, mark it high priority",
-      "Add a task to prepare for the quarterly review with key metrics from all departments"
-    ];
-    
-    // Simulate transcription time
-    setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * sampleTexts.length);
-      resolve(sampleTexts[randomIndex]);
-    }, 3000); // 3 seconds delay
-  });
-};
 
 const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -142,8 +157,37 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [taskResult, setTaskResult] = useState<any>(null);
   const [taskCreated, setTaskCreated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   const timerRef = useRef<number | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  
+  // Check for API key on mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('openai_api_key') || '';
+    setApiKey(savedApiKey);
+  }, []);
+  
+  // Check for microphone permission on mount
+  useEffect(() => {
+    const checkMicrophonePermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // If we get here, permission was granted
+        setHasPermission(true);
+        // Stop the stream immediately since we're just checking permissions
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('Microphone permission denied:', err);
+        setHasPermission(false);
+      }
+    };
+    
+    checkMicrophonePermission();
+  }, []);
   
   useEffect(() => {
     if (isRecording) {
@@ -163,6 +207,11 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
       }
+      
+      // Clean up any active media recorder
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.stop();
+      }
     };
   }, [isRecording]);
   
@@ -172,32 +221,93 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
   
-  const toggleRecording = async () => {
-    if (isRecording) {
-      // Stop recording
-      setIsRecording(false);
-      setIsProcessing(true);
+  const saveApiKey = () => {
+    localStorage.setItem('openai_api_key', apiKey);
+    setError(null);
+  };
+  
+  const startRecording = async () => {
+    try {
+      // Reset state
+      setError(null);
+      audioChunksRef.current = [];
       
-      try {
-        // Simulate voice recognition
-        const text = await mockVoiceRecognition();
-        setTranscript(text);
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Create media recorder
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      // Set up event handlers
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        // Combine audio chunks into a single blob
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
-        // Process the text to a task
-        const taskData = await textToTask(text);
-        setTaskResult(taskData);
-      } catch (error) {
-        console.error('Error processing voice:', error);
-      } finally {
-        setIsProcessing(false);
-      }
-    } else {
+        // Process the audio
+        await processAudio(audioBlob);
+        
+        // Stop all tracks in the stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
       // Start recording
+      mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
       setTranscript('');
       setTaskResult(null);
       setTaskCreated(false);
+    } catch (err) {
+      console.error('Error starting recording:', err);
+      setError('Could not access microphone. Please check your browser permissions.');
+      setHasPermission(false);
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsProcessing(true);
+    }
+  };
+  
+  const processAudio = async (audioBlob: Blob) => {
+    try {
+      // Check if we have an API key
+      if (!apiKey) {
+        setError('OpenAI API key is required for transcription. Please enter your API key.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Transcribe the audio using Whisper API
+      const text = await transcribeSpeech(audioBlob);
+      setTranscript(text);
+      
+      // Process the text to a task
+      const taskData = await textToTask(text);
+      setTaskResult(taskData);
+    } catch (err) {
+      console.error('Error processing audio:', err);
+      setError(`Error processing audio: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const toggleRecording = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
     }
   };
   
@@ -205,17 +315,23 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
     if (!taskResult) return;
     
     setIsProcessing(true);
+    setError(null);
     
     try {
       // Find campaign ID based on campaign name
       let campaignId: string | null = null;
       
       if (taskResult.campaign) {
-        const { data: campaignsData } = await supabase
+        const { data: campaignsData, error: campaignError } = await supabase
           .from('campaigns')
           .select('id, title')
           .ilike('title', `%${taskResult.campaign}%`)
           .limit(1);
+          
+        if (campaignError) {
+          console.error('Error finding campaign:', campaignError);
+          throw campaignError;
+        }
           
         if (campaignsData && campaignsData.length > 0) {
           campaignId = campaignsData[0].id;
@@ -231,7 +347,8 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
           status: 'todo',
           priority: taskResult.priority,
           tags: taskResult.tags.length > 0 ? taskResult.tags : null,
-          campaign_id: campaignId
+          campaign_id: campaignId,
+          due_date: taskResult.due_date || null
         }])
         .select();
         
@@ -256,6 +373,7 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
       }, 3000);
     } catch (error) {
       console.error('Error creating task:', error);
+      setError(`Error creating task: ${error instanceof Error ? error.message : 'Database error'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -266,7 +384,65 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
     setTaskResult(null);
     setTaskCreated(false);
     setRecordingTime(0);
+    setError(null);
   };
+  
+  const requestMicrophonePermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setHasPermission(true);
+      // Stop the stream immediately
+      stream.getTracks().forEach(track => track.stop());
+    } catch (err) {
+      console.error('Failed to get microphone permission:', err);
+      setError('Could not access microphone. Please check your browser permissions.');
+      setHasPermission(false);
+    }
+  };
+  
+  // If we need to set up the API key first
+  if (!apiKey) {
+    return (
+      <VoiceToTaskContainer>
+        <h3>Voice to Task Setup</h3>
+        <p>Please enter your OpenAI API key to enable voice transcription:</p>
+        
+        <ApiKeyInput>
+          <label htmlFor="openai-api-key">OpenAI API Key:</label>
+          <input
+            id="openai-api-key"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="sk-..."
+          />
+          <p>Your API key is stored locally in your browser and never sent to our servers.</p>
+          
+          <ActionButtons>
+            <Button variant="primary" onClick={saveApiKey} disabled={!apiKey}>
+              Save API Key
+            </Button>
+          </ActionButtons>
+        </ApiKeyInput>
+      </VoiceToTaskContainer>
+    );
+  }
+  
+  // If we need microphone permission
+  if (hasPermission === false) {
+    return (
+      <VoiceToTaskContainer>
+        <h3>Microphone Access Required</h3>
+        <PermissionRequest>
+          <FiAlertCircle size={40} style={{ marginBottom: '16px' }} />
+          <p>This feature requires microphone access to record your voice.</p>
+          <Button variant="primary" onClick={requestMicrophonePermission}>
+            Request Microphone Access
+          </Button>
+        </PermissionRequest>
+      </VoiceToTaskContainer>
+    );
+  }
   
   return (
     <VoiceToTaskContainer>
@@ -306,6 +482,25 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
         </RecordingWaves>
       )}
       
+      {isProcessing && (
+        <div style={{ textAlign: 'center', margin: '20px 0' }}>
+          <FiLoader size={32} style={{ animation: 'spin 1s linear infinite' }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      )}
+      
+      {error && (
+        <ErrorMessage>
+          <FiAlertCircle size={18} />
+          {error}
+        </ErrorMessage>
+      )}
+      
       {transcript && (
         <>
           <TranscriptContainer>
@@ -339,6 +534,11 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
                   <strong>Campaign:</strong> {taskResult.campaign}
                 </div>
               )}
+              {taskResult.due_date && (
+                <div>
+                  <strong>Due Date:</strong> {taskResult.due_date}
+                </div>
+              )}
               
               <ActionButtons>
                 <Button
@@ -346,7 +546,12 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
                   onClick={handleCreateTask}
                   disabled={isProcessing}
                 >
-                  Create Task
+                  {isProcessing ? (
+                    <>
+                      <FiLoader size={16} style={{ marginRight: '8px', animation: 'spin 1s linear infinite' }} />
+                      Creating...
+                    </>
+                  ) : 'Create Task'}
                 </Button>
                 <Button
                   variant="outlined"
