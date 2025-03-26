@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { textToTask, transcribeSpeech } from '../services/openai';
+import { supabase } from '../services/supabase';
 import ApiKeyInput from './ApiKeyInput';
 
 interface SimpleVoiceToTaskProps {
@@ -134,24 +135,34 @@ const SimpleVoiceToTask: React.FC<SimpleVoiceToTaskProps> = ({ onTaskCreated }) 
       // First try with Supabase
       let createdInSupabase = false;
       try {
-        // Try to insert the task directly with Supabase client
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert([{
-            title: result.title,
-            description: result.description,
-            status: 'todo',
-            priority: result.priority,
-            tags: result.tags.length > 0 ? result.tags : null,
-            campaign_id: null // We don't have the campaign ID here
-          }])
-          .select();
-        
-        if (!error) {
-          createdInSupabase = true;
-          console.log('Task created in Supabase:', data);
+        // Check if user is authenticated
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) {
+          console.warn('User not authenticated, using localStorage instead');
         } else {
-          console.warn('Supabase error:', error);
+          // User is authenticated, try to insert task
+          const { data, error } = await supabase
+            .from('tasks')
+            .insert([{
+              title: result.title,
+              description: result.description,
+              status: 'todo',
+              priority: result.priority,
+              tags: result.tags.length > 0 ? result.tags : null,
+              // Add additional required fields
+              user_id: authData.user.id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              campaign_id: null // We don't have the campaign ID here
+            }])
+            .select();
+          
+          if (!error) {
+            createdInSupabase = true;
+            console.log('Task created in Supabase:', data);
+          } else {
+            console.warn('Supabase error:', error);
+          }
         }
       } catch (supabaseError) {
         console.warn('Could not create task in Supabase, using local storage instead:', supabaseError);
