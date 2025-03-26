@@ -511,6 +511,7 @@ const Tasks: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showMoreCampaigns, setShowMoreCampaigns] = useState(false);
   const [formData, setFormData] = useState<TaskForm>({
     title: '',
     description: '',
@@ -980,52 +981,45 @@ const Tasks: React.FC = () => {
                   ))}
                   {campaigns.length > 3 && (
                     <FilterButton
-                      onClick={() => {
-                        const campaignSelector = document.getElementById('campaignSelector');
-                        if (campaignSelector) {
-                          campaignSelector.style.display = campaignSelector.style.display === 'none' ? 'flex' : 'none';
-                        }
-                      }}
+                      onClick={() => setShowMoreCampaigns(!showMoreCampaigns)}
                     >
-                      More...
+                      {showMoreCampaigns ? 'Less...' : 'More...'}
                     </FilterButton>
                   )}
-                  <div 
-                    id="campaignSelector" 
-                    style={{ 
-                      display: 'none', 
-                      flexDirection: 'column', 
-                      gap: '8px', 
-                      position: 'absolute', 
-                      top: '100%', 
-                      left: '0', 
-                      background: 'white', 
-                      padding: '12px', 
-                      borderRadius: '8px', 
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)', 
-                      marginTop: '8px',
-                      zIndex: 100,
-                      maxHeight: '300px',
-                      overflowY: 'auto'
-                    }}
-                  >
-                    {campaigns.slice(3).map(campaign => (
-                      <FilterButton 
-                        key={campaign.id}
-                        $active={selectedCampaign === campaign.id ? true : undefined} 
-                        onClick={() => {
-                          setSelectedCampaign(campaign.id);
-                          const campaignSelector = document.getElementById('campaignSelector');
-                          if (campaignSelector) {
-                            campaignSelector.style.display = 'none';
-                          }
-                        }}
-                        style={{ width: '100%', justifyContent: 'flex-start' }}
-                      >
-                        {campaign.title}
-                      </FilterButton>
-                    ))}
-                  </div>
+                  {showMoreCampaigns && (
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '8px', 
+                        position: 'absolute', 
+                        top: '100%', 
+                        left: '0', 
+                        background: 'white', 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)', 
+                        marginTop: '8px',
+                        zIndex: 100,
+                        maxHeight: '300px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      {campaigns.slice(3).map(campaign => (
+                        <FilterButton 
+                          key={campaign.id}
+                          $active={selectedCampaign === campaign.id ? true : undefined} 
+                          onClick={() => {
+                            setSelectedCampaign(campaign.id);
+                            setShowMoreCampaigns(false);
+                          }}
+                          style={{ width: '100%', justifyContent: 'flex-start' }}
+                        >
+                          {campaign.title}
+                        </FilterButton>
+                      ))}
+                    </div>
+                  )}
                 </FiltersRow>
               </FilterGroup>
             )}
