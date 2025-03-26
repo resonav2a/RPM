@@ -476,9 +476,6 @@ const TextToTask: React.FC<TextToTaskProps> = ({ onTaskCreated }) => {
   
   return (
     <TextToTaskContainer>
-      <h3>Text to Task</h3>
-      <p>Type or paste your task description and we'll convert it into a structured task.</p>
-      
       <TextInputContainer>
         <InputWrapper>
           <TextInput 

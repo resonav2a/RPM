@@ -455,9 +455,6 @@ const VoiceToTask: React.FC<VoiceToTaskProps> = ({ onTaskCreated }) => {
   
   return (
     <VoiceToTaskContainer>
-      <h3>Voice to Task</h3>
-      <p>Click the microphone button and speak your task. We'll convert it into a structured task for you.</p>
-      
       <RecordButton 
         $recording={isRecording}
         onClick={toggleRecording}

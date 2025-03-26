@@ -950,11 +950,22 @@ const Tasks: React.FC = () => {
       </TasksHeader>
       
       {showTextToTask && (
-        <TextToTask onTaskCreated={fetchTasks} />
+        <div style={{ background: '#ffffff', borderRadius: '1rem', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #e0e6ed' }}>
+          <h3>Text to Task</h3>
+          <p>Convert natural language to structured tasks.</p>
+          <TextToTask onTaskCreated={fetchTasks} />
+          <div style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '1rem' }}>
+            <p>Example: "Remind me to update the investor deck with the LOI and AWS credits, mark it high priority and drop it in the Drive."</p>
+          </div>
+        </div>
       )}
       
       {showVoiceToTask && (
-        <VoiceToTask onTaskCreated={fetchTasks} />
+        <div style={{ background: '#ffffff', borderRadius: '1rem', padding: '1rem', marginBottom: '1.5rem', border: '1px solid #e0e6ed' }}>
+          <h3>Voice to Task</h3>
+          <p>Speak your task and we'll transcribe and organize it for you.</p>
+          <VoiceToTask onTaskCreated={fetchTasks} />
+        </div>
       )}
       
       <FilterSection>
